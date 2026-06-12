@@ -2,7 +2,7 @@ name: TW BANK RATES UPDATE
 
 on:
   schedule:
-    - cron: '50 4 * * *'
+    - cron: '30 1 * * *'
   workflow_dispatch: # 保留這個設定，讓您可以隨時在 GitHub 網頁上手動點擊執行測試
 
 jobs:
@@ -28,6 +28,6 @@ jobs:
     - name: Run Scraper
       # 這裡將 GitHub Secrets 注入為環境變數給 Python 讀取
       env:
-        MY_GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
+        MY_GITHUB_TOKEN: ${{secrets.MY_GITHUB_TOKEN }}
       run: |
         python cbc_github_tracker.py
