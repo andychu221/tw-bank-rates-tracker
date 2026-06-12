@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>台灣銀行業定存牌告利率追蹤</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --border: #cbd5e1;
+            --hover: #f1f5f9;
+            --highlight: #ef4444; /* 紅字最高 */
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 15px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 { font-size: 1.4rem; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+        
+        /* 篩選器：客製化下拉多選 */
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin-bottom: 15px;
+            background: var(--surface);
+            padding: 12px 15px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .control-group { position: relative; }
+        label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-light); margin-bottom: 4px; }
+        
+        /* 單選 Date */
+        select.date-select {
+            width: 100%; padding: 6px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; background: #fff;
+        }
+
+        /* 仿製的多選下拉選單 */
+        .dropdown {
+            width: 100%; border: 1px solid var(--border); border-radius: 6px; background: #fff; cursor: pointer; user-select: none;
+        }
+        .dropdown-header { padding: 6px 10px; font-size: 0.85rem; display: flex; justify-content: space-between; }
+        .dropdown-content {
+            display: none; position: absolute; top: 100%; left: 0; right: 0; background: #fff;
+            border: 1px solid var(--border); border-top: none; z-index: 10; max-height: 250px; overflow-y: auto;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-radius: 0 0 6px 6px;
+        }
+        .dropdown.open .dropdown-content { display: block; }
+        .dropdown-item { padding: 5px 10px; display: flex; align-items: center; font-size: 0.85rem; }
+        .dropdown-item:hover { background: var(--hover); }
+        .dropdown-item input { margin-right: 8px; cursor: pointer; }
+
+        /* 矩陣表格設計 (高度縮減版) */
+        .table-wrapper {
+            background: var(--surface);
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            max-height: 70vh; /* 限制高度出現卷軸 */
+            overflow-y: auto;
+            overflow-x: auto;
+            position: relative;
+        }
+        table { width: 100%; border-collapse: separate; border-spacing: 0; text-align: center; }
+        th, td { 
+            padding: 6px 8px; /* 縮小 Padding 讓表格變矮 */
+            border-bottom: 1px solid var(--border); 
+            border-right: 1px solid var(--hover); 
+            font-size: 0.85rem; /* 稍微縮小字體 */
+        }
+        th:last-child, td:last-child { border-right: none; }
+        
+        /* 表頭固定 (Sticky) */
+        thead th {
+            position: sticky; top: 0; z-index: 2;
+            background: #e2e8f0; font-weight: 600; cursor: pointer; color: #334155;
+            box-shadow: 0 1px 0 var(--border);
+            white-space: nowrap;
+            line-height: 1.3;
+        }
+        thead th:hover { background: #cbd5e1; }
+        
+        /* 銀行名稱固定樣式 */
+        tbody td:nth-child(2) { font-weight: 600; background: var(--surface); text-align: left; }
+
+        /* 利率數值樣式 */
+        .rate-link {
+            text-decoration: underline;
+            text-underline-offset: 3px;
+            cursor: pointer;
+            color: var(--text); /* 預設改為黑色 */
+            padding: 3px 6px;
+            border-radius: 4px;
+        }
+        .rate-link:hover { background: #eff6ff; color: var(--primary); }
+        .col-max { color: var(--primary); font-weight: 900; } /* 該存期最高顯示藍色粗體 */
+        .overall-max { color: var(--highlight); font-weight: 900; }
+        
+        .empty-cell { color: #94a3b8; }
+        .note { font-size: 0.75rem; color: var(--text-light); margin-top: 8px; }
+
+        /* 彈出視窗 */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000;
+        }
+        .modal-content {
+            background: var(--surface); padding: 15px; border-radius: 8px; width: 90%; max-width: 600px; position: relative;
+        }
+        .close-btn { position: absolute; top: 10px; right: 15px; font-size: 1.5rem; cursor: pointer; color: var(--text-light); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>
+        🏦 台灣銀行業定存牌告利率追蹤
+    </h1>
+    
+    <div class="controls">
+        <div class="control-group">
+            <label>資料日期</label>
+            <select id="dateSelect" class="date-select" onchange="processAndRender()"></select>
+        </div>
+        <div class="control-group">
+            <label>銀行</label>
+            <div class="dropdown" id="dd-bank" onclick="toggleDD('dd-bank', event)">
+                <div class="dropdown-header"><span id="lbl-bank">載入中...</span> ▾</div>
+                <div class="dropdown-content" id="chk-bank" onclick="event.stopPropagation()"></div>
+            </div>
+        </div>
+        <div class="control-group">
+            <label>存期</label>
+            <div class="dropdown" id="dd-term" onclick="toggleDD('dd-term', event)">
+                <div class="dropdown-header"><span id="lbl-term">載入中...</span> ▾</div>
+                <div class="dropdown-content" id="chk-term" onclick="event.stopPropagation()"></div>
+            </div>
+        </div>
+        <div class="control-group">
+            <label>額度 (大額/一般)</label>
+            <div class="dropdown" id="dd-quota" onclick="toggleDD('dd-quota', event)">
+                <div class="dropdown-header"><span id="lbl-quota">載入中...</span> ▾</div>
+                <div class="dropdown-content" id="chk-quota" onclick="event.stopPropagation()"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-wrapper">
+        <table id="matrixTable">
+            <thead id="tableHead">
+                <!-- 動態產生表頭 -->
+            </thead>
+            <tbody id="tableBody">
+                <tr><td colspan="7" style="text-align: center; padding: 20px;">資料載入中，請稍候...</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="note">* 額度非「一般」者皆統一歸類為「大額」，若遇同銀行同存期有多種大額級距，一律取最高利率比較。點擊具底線之數值可查看歷史走勢。</div>
+</div>
+
+<!-- Modal 走勢圖 -->
+<div id="chartModal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeModal()">&times;</span>
+        <h2 id="modalTitle" style="font-size: 1.1rem; margin-top: 0;">歷史走勢</h2>
+        <p id="modalSubtitle" style="font-size: 0.85rem; color: #64748b; margin-top: -8px; margin-bottom: 12px;"></p>
+        <canvas id="detailChart" height="100"></canvas>
+    </div>
+</div>
+
+<script>
+// ==========================================
+// 1. 全域變數與常數
+// ==========================================
+const DATA_URL = 'https://raw.githubusercontent.com/andychu221/tw-bank-rates-tracker/main/data/rates_2026.json';
+const TARGET_TERMS = ['1月', '3月', '6月', '9月', '1年']; 
+
+let rawData = [];
+let matrixData = []; 
+let sortCol = 'avgRank'; // 預設使用綜合排名排序
+let sortAsc = true;      // 排名數字越小越前面
+let chartInst = null;
+
+// ==========================================
+// 2. 初始化與資料載入
+// ==========================================
+async function init() {
+    try {
+        const res = await fetch(DATA_URL);
+        let data = await res.json();
+        
+        // 資料清洗與過濾
+        data = data.filter(d => d.Rate && d.Rate !== '--');
+        
+        // 紀錄去重用 (合併多個大額條件取最高)
+        const dedupMap = {};
+
+        data.forEach(d => {
+            d.Rate = parseFloat(d.Rate);
+            d.Bank = d.Bank.replace(/^\d+/, '').replace(/\s+/g, '');
+            
+            // 紀錄原始額度，供 tooltip 與細節圖使用
+            d.OriginalQuota = d.Quota;
+
+            // 將所有非一般的額度歸類為 "大額"
+            if (d.Quota !== '一般') d.Quota = '大額';
+
+            // 去重複：如果同一天、同銀行、同存期、同額度有多筆，保留最高利率
+            const key = `${d.Date}|${d.Bank}|${d.Term}|${d.Quota}`;
+            if (!dedupMap[key] || d.Rate > dedupMap[key].Rate) {
+                dedupMap[key] = d;
+            }
+        });
+
+        // 只保留目標存期的乾淨資料
+        rawData = Object.values(dedupMap).filter(d => TARGET_TERMS.includes(d.Term));
+
+        // 提取獨立選項
+        const dates = [...new Set(rawData.map(d => d.Date))].sort((a,b) => b.localeCompare(a)); 
+        const banks = [...new Set(rawData.map(d => d.Bank))].sort();
+        const quotas = [...new Set(rawData.map(d => d.Quota))].sort();
+
+        // 填入 Date 下拉
+        const dateSel = document.getElementById('dateSelect');
+        dates.forEach(date => dateSel.add(new Option(date, date)));
+
+        // 建立客製化多選選單
+        buildCheckboxes('chk-bank', banks, true);
+        buildCheckboxes('chk-term', TARGET_TERMS, true);
+        
+        // 額度預設勾選「大額」
+        const defaultQuotas = quotas.filter(q => q === '大額');
+        buildCheckboxes('chk-quota', quotas, false, defaultQuotas);
+
+        updateLabels();
+        processAndRender();
+
+    } catch (e) {
+        document.getElementById('tableBody').innerHTML = `<tr><td colspan="7" style="color:red; text-align:center;">讀取失敗: ${e.message}</td></tr>`;
+    }
+}
+
+// ==========================================
+// 3. UI 元件邏輯 (客製下拉多選)
+// ==========================================
+function buildCheckboxes(containerId, items, checkAll, defaultCheckedItems = []) {
+    const container = document.getElementById(containerId);
+    let html = `<label class="dropdown-item" style="border-bottom: 1px solid #e2e8f0; font-weight: bold;">
+                    <input type="checkbox" onchange="toggleAll('${containerId}', this.checked)"> (全選/全不選)
+                </label>`;
+    items.forEach(item => {
+        const isChecked = checkAll || defaultCheckedItems.includes(item) ? 'checked' : '';
+        html += `<label class="dropdown-item">
+                    <input type="checkbox" value="${item}" ${isChecked} onchange="updateLabels(); processAndRender();"> ${item}
+                 </label>`;
+    });
+    container.innerHTML = html;
+}
+
+function toggleAll(containerId, checked) {
+    const inputs = document.querySelectorAll(`#${containerId} input[type="checkbox"]`);
+    inputs.forEach((input, index) => { if(index > 0) input.checked = checked; });
+    updateLabels();
+    processAndRender();
+}
+
+function toggleDD(id, event) {
+    event.stopPropagation();
+    document.querySelectorAll('.dropdown').forEach(dd => {
+        if (dd.id !== id) dd.classList.remove('open');
+    });
+    document.getElementById(id).classList.toggle('open');
+}
+
+document.addEventListener('click', () => {
+    document.querySelectorAll('.dropdown').forEach(dd => dd.classList.remove('open'));
+});
+
+function getChecked(containerId) {
+    const inputs = document.querySelectorAll(`#${containerId} input[type="checkbox"]:checked`);
+    return Array.from(inputs).map(i => i.value).filter(v => v);
+}
+
+function updateLabels() {
+    const bCount = getChecked('chk-bank').length;
+    const tCount = getChecked('chk-term').length;
+    const qCount = getChecked('chk-quota').length;
+    document.getElementById('lbl-bank').innerText = bCount > 0 ? `已選 ${bCount} 家` : '請選擇';
+    document.getElementById('lbl-term').innerText = tCount > 0 ? `已選 ${tCount} 項` : '請選擇';
+    document.getElementById('lbl-quota').innerText = qCount > 0 ? `已選 ${qCount} 項` : '請選擇';
+}
+
+// ==========================================
+// 4. 資料處理與表格渲染 (矩陣核心與平均排名邏輯)
+// ==========================================
+function processAndRender() {
+    const date = document.getElementById('dateSelect').value;
+    const selBanks = getChecked('chk-bank');
+    const selTerms = TARGET_TERMS.filter(t => getChecked('chk-term').includes(t)); 
+    const selQuotas = getChecked('chk-quota');
+
+    // 1. 篩選出當日符合條件的資料
+    const currentData = rawData.filter(d => 
+        d.Date === date && 
+        selBanks.includes(d.Bank) && 
+        selTerms.includes(d.Term) && 
+        selQuotas.includes(d.Quota)
+    );
+
+    // 2. 轉換為按銀行與存期分組的結構
+    const grouped = {};
+    currentData.forEach(d => {
+        if (!grouped[d.Bank]) grouped[d.Bank] = {};
+        if (!grouped[d.Bank][d.Term]) grouped[d.Bank][d.Term] = [];
+        grouped[d.Bank][d.Term].push(d);
+    });
+
+    // 3. 計算各存期的排名陣列，用於計算綜合平均排名
+    const termRankingScale = {};
+    selTerms.forEach(term => {
+        let termRates = [];
+        for (const bank in grouped) {
+            if (grouped[bank][term] && grouped[bank][term].length > 0) {
+                let maxRate = Math.max(...grouped[bank][term].map(r => r.Rate));
+                termRates.push(maxRate);
+                grouped[bank][term].resolvedMaxRate = maxRate; // 暫存最大值
+            }
+        }
+        // 將該存期所有出現過的利率獨立出來並降冪排序，作為排名參考
+        termRankingScale[term] = [...new Set(termRates)].sort((a, b) => b - a);
+    });
+
+    matrixData = [];
+    let colMaxRates = {};
+    let overallMaxRate = -1;
+
+    // 4. 計算單一儲存格最佳解與綜合排名
+    for (const bank in grouped) {
+        let rowObj = { Bank: bank };
+        let rankSum = 0;
+        let rankCount = 0;
+        
+        selTerms.forEach(term => {
+            const records = grouped[bank][term];
+            if (records && records.length > 0) {
+                const maxRate = records.resolvedMaxRate;
+                const bestRecord = records.find(r => r.Rate === maxRate);
+                
+                rowObj[term] = { rate: maxRate, quota: bestRecord.Quota, originalQuota: bestRecord.OriginalQuota };
+                
+                // 找出這個利率在該存期中的名次
+                let currentRank = termRankingScale[term].indexOf(maxRate) + 1;
+                rankSum += currentRank;
+                rankCount++;
+                
+                // 統計全域與欄位最大值
+                if (!colMaxRates[term] || maxRate > colMaxRates[term]) colMaxRates[term] = maxRate;
+                if (maxRate > overallMaxRate) overallMaxRate = maxRate;
+            }
+        });
+
+        // 該銀行的綜合平均排名 (若無資料則墊底)
+        rowObj.avgRank = rankCount > 0 ? (rankSum / rankCount) : 999;
+        matrixData.push(rowObj);
+    }
+
+    // 5. 執行排序
+    matrixData.sort((a, b) => {
+        if (sortCol === 'avgRank') {
+            return sortAsc ? a.avgRank - b.avgRank : b.avgRank - a.avgRank;
+        } else if (sortCol === 'Bank') {
+            return sortAsc ? a.Bank.localeCompare(b.Bank) : b.Bank.localeCompare(a.Bank);
+        } else {
+            let valA = a[sortCol] ? a[sortCol].rate : -1;
+            let valB = b[sortCol] ? b[sortCol].rate : -1;
+            if (valA < valB) return sortAsc ? -1 : 1;
+            if (valA > valB) return sortAsc ? 1 : -1;
+            return 0;
+        }
+    });
+
+    // 6. 渲染表頭
+    const thead = document.getElementById('tableHead');
+    let thHtml = `<th onclick="setSort('avgRank')" style="width: 50px;">排名 ${sortIndicator('avgRank')}</th>`;
+    thHtml += `<th onclick="setSort('Bank')">銀行 ${sortIndicator('Bank')}</th>`;
+    selTerms.forEach(term => {
+        const maxRateText = colMaxRates[term] ? `<br><span style="font-size: 0.75rem; color: var(--primary); font-weight: normal;">最高: ${colMaxRates[term].toFixed(3)}%</span>` : '';
+        thHtml += `<th onclick="setSort('${term}')">${term} ${sortIndicator(term)}${maxRateText}</th>`;
+    });
+    thead.innerHTML = `<tr>${thHtml}</tr>`;
+
+    // 7. 渲染表格主體
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = '';
+    
+    if (matrixData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="${selTerms.length + 2}">無符合條件之資料</td></tr>`;
+        return;
+    }
+
+    matrixData.forEach((row, index) => {
+        const tr = document.createElement('tr');
+        // 顯示為目前的排序名次(index + 1)
+        let tdHtml = `<td style="color: var(--text-light); font-weight: bold;">${index + 1}</td>`;
+        tdHtml += `<td>${row.Bank}</td>`;
+        
+        selTerms.forEach(term => {
+            const cell = row[term];
+            if (cell) {
+                let classes = "rate-link";
+                if (cell.rate === overallMaxRate) classes += " overall-max";
+                else if (cell.rate === colMaxRates[term]) classes += " col-max";
+                
+                tdHtml += `<td>
+                    <span class="${classes}" title="對應額度：${cell.originalQuota}" onclick="openChart('${row.Bank}', '${term}', '${cell.quota}', '${cell.originalQuota}')">
+                        ${cell.rate.toFixed(3)}
+                    </span>
+                </td>`;
+            } else {
+                tdHtml += `<td class="empty-cell">-</td>`;
+            }
+        });
+        tr.innerHTML = tdHtml;
+        tbody.appendChild(tr);
+    });
+}
+
+// 處理排序點擊
+function setSort(col) {
+    if (sortCol === col) {
+        sortAsc = !sortAsc;
+    } else {
+        sortCol = col; 
+        // 排名與銀行名稱預設為從小到大/筆畫排序，利率類預設為由大到小(尋找高利)
+        sortAsc = (col === 'Bank' || col === 'avgRank'); 
+    }
+    processAndRender();
+}
+
+function sortIndicator(col) {
+    if (sortCol !== col) return '<span style="color:#cbd5e1;">↕</span>';
+    return sortAsc ? '↑' : '↓';
+}
+
+// ==========================================
+// 5. 彈出走勢圖 (Chart.js)
+// ==========================================
+function openChart(bank, term, quota, originalQuota) {
+    const history = rawData.filter(d => d.Bank === bank && d.Term === term && d.Quota === quota)
+                           .sort((a, b) => new Date(a.Date) - new Date(b.Date)); 
+
+    document.getElementById('modalTitle').innerText = `${bank} - ${term}定存走勢`;
+    document.getElementById('modalSubtitle').innerText = `對應額度：${originalQuota}`;
+    document.getElementById('chartModal').style.display = 'flex';
+
+    const ctx = document.getElementById('detailChart').getContext('2d');
+    if (chartInst) chartInst.destroy();
+
+    const rates = history.map(d => d.Rate);
+    const dates = history.map(d => d.Date);
+    const isUp = rates[rates.length-1] >= rates[0];
+
+    chartInst = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: dates,
+            datasets: [{
+                label: '固定利率 (%)',
+                data: rates,
+                borderColor: isUp ? '#ef4444' : '#2563eb', 
+                backgroundColor: isUp ? 'rgba(239, 68, 68, 0.1)' : 'rgba(37, 99, 235, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.1,
+                pointBackgroundColor: '#fff',
+                pointBorderColor: isUp ? '#ef4444' : '#2563eb',
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { tooltip: { mode: 'index', intersect: false } },
+            scales: {
+                y: { 
+                    title: { display: true, text: '利率 (%)' },
+                    min: Math.min(...rates) - 0.05,
+                    max: Math.max(...rates) + 0.05
+                },
+                x: { title: { display: false } }
+            }
+        }
+    });
+}
+
+function closeModal() {
+    document.getElementById('chartModal').style.display = 'none';
+}
+
+// 啟動 App
+window.onload = init;
+</script>
+</body>
+</html>
