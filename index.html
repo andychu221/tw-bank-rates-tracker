@@ -167,7 +167,7 @@
             </tbody>
         </table>
     </div>
-    <div class="note">* 額度非「一般」者皆統一歸類為「大額」，若遇同銀行同存期有多種大額級距，一律取最高利率比較。點擊具底線之數值可查看歷史走勢。</div>
+    <div class="note">* 同一存期若有多種額度級距，表格將同時呈現多筆利率（由高至低排列），滑鼠游標停懸可查看對應之原始額度。點擊具底線之數值可查看歷史走勢。</div>
 </div>
 
 <!-- Modal 走勢圖 -->
@@ -346,7 +346,7 @@ function processAndRender() {
     let colMaxRates = {};
     let overallMaxRate = -1;
 
-    // 4. 計算單一儲存格最佳解與綜合排名
+    // 4. 計算單一儲存格內的所有利率與綜合排名
     for (const bank in grouped) {
         let rowObj = { Bank: bank };
         let rankSum = 0;
@@ -355,23 +355,29 @@ function processAndRender() {
         selTerms.forEach(term => {
             const records = grouped[bank][term];
             if (records && records.length > 0) {
-                const maxRate = records.resolvedMaxRate;
-                const bestRecord = records.find(r => r.Rate === maxRate);
+                // 將該儲存格內的所有紀錄按利率「由大到小」排序，全數保留成陣列
+                const sortedRecords = [...records].sort((a, b) => b.Rate - a.Rate);
                 
-                rowObj[term] = { rate: maxRate, quota: bestRecord.Quota, originalQuota: bestRecord.OriginalQuota };
+                rowObj[term] = sortedRecords.map(r => ({
+                    rate: r.Rate,
+                    quota: r.Quota,
+                    originalQuota: r.OriginalQuota
+                }));
                 
-                // 找出這個利率在該存期中的名次
+                // 排名與最高值統計，依然以該儲存格的「最高利率 (即陣列第0項)」為準
+                const maxRate = sortedRecords[0].Rate;
+                
                 let currentRank = termRankingScale[term].indexOf(maxRate) + 1;
                 rankSum += currentRank;
                 rankCount++;
                 
-                // 統計全域與欄位最大值
+                // 統計全域與單行最大值
                 if (!colMaxRates[term] || maxRate > colMaxRates[term]) colMaxRates[term] = maxRate;
                 if (maxRate > overallMaxRate) overallMaxRate = maxRate;
             }
         });
 
-        // 該銀行的綜合平均排名 (若無資料則墊底)
+        // 該銀行的綜合平均排名
         rowObj.avgRank = rankCount > 0 ? (rankSum / rankCount) : 999;
         matrixData.push(rowObj);
     }
@@ -383,8 +389,9 @@ function processAndRender() {
         } else if (sortCol === 'Bank') {
             return sortAsc ? a.Bank.localeCompare(b.Bank) : b.Bank.localeCompare(a.Bank);
         } else {
-            let valA = a[sortCol] ? a[sortCol].rate : -1;
-            let valB = b[sortCol] ? b[sortCol].rate : -1;
+            // 因為現在 rowObj[term] 變成陣列了，排序時統一抓陣列的第一個(最高利率)來比大小
+            let valA = (a[sortCol] && a[sortCol].length > 0) ? a[sortCol][0].rate : -1;
+            let valB = (b[sortCol] && b[sortCol].length > 0) ? b[sortCol][0].rate : -1;
             if (valA < valB) return sortAsc ? -1 : 1;
             if (valA > valB) return sortAsc ? 1 : -1;
             return 0;
@@ -412,22 +419,27 @@ function processAndRender() {
 
     matrixData.forEach((row, index) => {
         const tr = document.createElement('tr');
-        // 顯示為目前的排序名次(index + 1)
         let tdHtml = `<td style="color: var(--text-light); font-weight: bold;">${index + 1}</td>`;
         tdHtml += `<td>${row.Bank}</td>`;
         
         selTerms.forEach(term => {
-            const cell = row[term];
-            if (cell) {
-                let classes = "rate-link";
-                if (cell.rate === overallMaxRate) classes += " overall-max";
-                else if (cell.rate === colMaxRates[term]) classes += " col-max";
-                
-                tdHtml += `<td>
-                    <span class="${classes}" title="對應額度：${cell.originalQuota}" onclick="openChart('${row.Bank}', '${term}', '${cell.quota}', '${cell.originalQuota}')">
-                        ${cell.rate.toFixed(3)}
-                    </span>
-                </td>`;
+            const cellRates = row[term]; // 現在這裡是一個包含多筆利率的陣列
+            if (cellRates && cellRates.length > 0) {
+                tdHtml += `<td>`;
+                // 使用迴圈把該存期底下的所有額度利率一行一行印出來
+                cellRates.forEach(item => {
+                    let classes = "rate-link";
+                    if (item.rate === overallMaxRate) classes += " overall-max";
+                    else if (item.rate === colMaxRates[term]) classes += " col-max";
+                    
+                    // 用 margin 讓上下數字有點間距，比較好閱讀
+                    tdHtml += `<div style="margin: 4px 0;">
+                        <span class="${classes}" title="對應額度：${item.originalQuota}" onclick="openChart('${row.Bank}', '${term}', '${item.quota}', '${item.originalQuota}')">
+                            ${item.rate.toFixed(3)}
+                        </span>
+                    </div>`;
+                });
+                tdHtml += `</td>`;
             } else {
                 tdHtml += `<td class="empty-cell">-</td>`;
             }
