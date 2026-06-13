@@ -192,7 +192,10 @@ def sync_with_github(new_df: pd.DataFrame):
         try:
             old_json_bytes = base64.b64decode(content_b64)
             old_json_str = old_json_bytes.decode('utf-8')
-            old_df = pd.read_json(io.StringIO(old_json_str), orient='records')
+            old_df = pd.read_json(io.StringIO(old_json_str), orient='records', convert_dates=False)
+            # 確保 Date 欄位絕對是字串型態
+            if 'Date' in old_df.columns:
+                old_df['Date'] = old_df['Date'].astype(str)
         except Exception as e:
             log.error(f"❌ 解析遠端原有 JSON 發生錯誤，將覆蓋建立新檔。錯誤: {e}")
             old_df = pd.DataFrame()
