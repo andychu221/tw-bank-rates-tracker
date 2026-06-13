@@ -22,7 +22,7 @@ jobs:
     - name: Install Dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install requests pandas json numpy base64 dataclass logging
+        pip install requests pandas
         import os
 
     - name: Run Scraper
