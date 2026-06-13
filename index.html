@@ -218,7 +218,7 @@ async function init() {
             if (d.Quota !== '一般') d.Quota = '大額';
 
             // 去重複：如果同一天、同銀行、同存期、同額度有多筆，保留最高利率
-            const key = `${d.Date}|${d.Bank}|${d.Term}|${d.Quota}`;
+            const key = `${d.Date}|${d.Bank}|${d.Term}|${d.OriginalQuota}`;
             if (!dedupMap[key] || d.Rate > dedupMap[key].Rate) {
                 dedupMap[key] = d;
             }
