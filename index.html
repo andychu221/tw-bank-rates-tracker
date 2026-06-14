@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台灣銀行業定存牌告利率追蹤</title>
+    <title>銀行牌告利率追蹤</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -32,7 +32,7 @@
         /* 篩選器：客製化下拉多選 */
         .controls {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
             gap: 12px;
             margin-bottom: 15px;
             background: var(--surface);
@@ -44,15 +44,16 @@
         label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-light); margin-bottom: 4px; }
         
         /* 單選 Date */
-        select.date-select {
-            width: 100%; padding: 6px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; background: #fff;
+        input.date-select {
+            width: 100%; padding: 5px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; background: #fff; box-sizing: border-box; cursor: pointer;
         }
 
         /* 仿製的多選下拉選單 */
         .dropdown {
-            width: 100%; border: 1px solid var(--border); border-radius: 6px; background: #fff; cursor: pointer; user-select: none;
+            width: 100%; border: 1px solid var(--border); border-radius: 6px; background: #fff; cursor: pointer; user-select: none; box-sizing: border-box;
         }
-        .dropdown-header { padding: 6px 10px; font-size: 0.85rem; display: flex; justify-content: space-between; }
+        .dropdown-header { padding: 6px 10px; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; }
+        .dropdown-header span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90%; }
         .dropdown-content {
             display: none; position: absolute; top: 100%; left: 0; right: 0; background: #fff;
             border: 1px solid var(--border); border-top: none; z-index: 10; max-height: 250px; overflow-y: auto;
@@ -62,23 +63,32 @@
         .dropdown-item { padding: 5px 10px; display: flex; align-items: center; font-size: 0.85rem; }
         .dropdown-item:hover { background: var(--hover); }
         .dropdown-item input { margin-right: 8px; cursor: pointer; }
+        
+        /* 視圖切換與動作按鈕 */
+        .action-buttons { display: flex; gap: 5px; }
+        .action-buttons button {
+            flex: 1; padding: 6px; border: 1px solid var(--border); background: white; color: var(--text);
+            border-radius: 4px; cursor: pointer; font-size: 0.8rem; font-weight: 600;
+        }
+        .action-buttons button.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .action-buttons button:hover:not(.active) { background: var(--hover); }
 
-        /* 矩陣表格設計 (高度縮減版) */
+        /* 矩陣表格設計 */
         .table-wrapper {
             background: var(--surface);
             border-radius: 8px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            max-height: 70vh; /* 限制高度出現卷軸 */
+            max-height: 70vh;
             overflow-y: auto;
             overflow-x: auto;
             position: relative;
         }
         table { width: 100%; border-collapse: separate; border-spacing: 0; text-align: center; }
         th, td { 
-            padding: 6px 8px; /* 縮小 Padding 讓表格變矮 */
+            padding: 6px 8px; 
             border-bottom: 1px solid var(--border); 
             border-right: 1px solid var(--hover); 
-            font-size: 0.85rem; /* 稍微縮小字體 */
+            font-size: 0.85rem; 
         }
         th:last-child, td:last-child { border-right: none; }
         
@@ -92,20 +102,22 @@
         }
         thead th:hover { background: #cbd5e1; }
         
-        /* 銀行名稱固定樣式 */
-        tbody td:nth-child(2) { font-weight: 600; background: var(--surface); text-align: left; }
+        /* 銀行名稱固定樣式 (矩陣模式) */
+        .matrix-mode tbody td:nth-child(2) { font-weight: 600; background: var(--surface); text-align: left; }
+        /* 銀行名稱固定樣式 (表格模式) */
+        .table-mode tbody td:nth-child(1) { font-weight: 600; background: var(--surface); text-align: left; }
 
         /* 利率數值樣式 */
         .rate-link {
             text-decoration: underline;
             text-underline-offset: 3px;
             cursor: pointer;
-            color: var(--text); /* 預設改為黑色 */
+            color: var(--text); 
             padding: 3px 6px;
             border-radius: 4px;
         }
         .rate-link:hover { background: #eff6ff; color: var(--primary); }
-        .col-max { color: var(--primary); font-weight: 900; } /* 該存期最高顯示藍色粗體 */
+        .col-max { color: var(--primary); font-weight: 900; } 
         .overall-max { color: var(--highlight); font-weight: 900; }
         
         .empty-cell { color: #94a3b8; }
@@ -120,19 +132,41 @@
             background: var(--surface); padding: 15px; border-radius: 8px; width: 90%; max-width: 600px; position: relative;
         }
         .close-btn { position: absolute; top: 10px; right: 15px; font-size: 1.5rem; cursor: pointer; color: var(--text-light); }
+        
+        /* 複製快閃訊息 (Toast) */
+        .toast {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            z-index: 9999;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .toast.show {
+            opacity: 1;
+            visibility: visible;
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h1>
-        🏦 台灣銀行業定存牌告利率追蹤
+        🏦 銀行牌告利率追蹤
     </h1>
     
     <div class="controls">
         <div class="control-group">
             <label>資料日期</label>
-            <select id="dateSelect" class="date-select" onchange="processAndRender()"></select>
+            <input type="date" id="dateSelect" class="date-select" onchange="processAndRender()">
         </div>
         <div class="control-group">
             <label>銀行</label>
@@ -155,10 +189,19 @@
                 <div class="dropdown-content" id="chk-quota" onclick="event.stopPropagation()"></div>
             </div>
         </div>
+        <!-- 檢視切換與匯出 -->
+        <div class="control-group">
+            <label>顯示模式與匯出</label>
+            <div class="action-buttons">
+                <button id="btnMatrix" class="active" onclick="switchView('matrix')">矩陣</button>
+                <button id="btnTable" onclick="switchView('table')">表格</button>
+                <button onclick="copyTable()">📋 複製</button>
+            </div>
+        </div>
     </div>
 
     <div class="table-wrapper">
-        <table id="matrixTable">
+        <table id="dataTable" class="matrix-mode">
             <thead id="tableHead">
                 <!-- 動態產生表頭 -->
             </thead>
@@ -167,7 +210,7 @@
             </tbody>
         </table>
     </div>
-    <div class="note">* 額度非「一般」者皆統一歸類為「大額」，表格預設顯示同條件下最高利率。游標懸停 (Hover) 數值可查看所有額度級距報價。點擊具底線之數值可查看歷史走勢。</div>
+    <div class="note">* 額度非「一般」者皆統一歸類為「大額」，矩陣表格預設顯示同條件下最高利率。游標懸停 (Hover) 數值可查看所有額度級距報價。點擊具底線之數值可查看歷史走勢。</div>
 </div>
 
 <!-- Modal 走勢圖 -->
@@ -180,6 +223,9 @@
     </div>
 </div>
 
+<!-- 快閃訊息 -->
+<div id="toastMsg" class="toast">✅ 已複製到剪貼簿</div>
+
 <script>
 // ==========================================
 // 1. 全域變數與常數
@@ -189,8 +235,16 @@ const TARGET_TERMS = ['1月', '3月', '6月', '9月', '1年'];
 
 let rawData = [];
 let matrixData = []; 
-let sortCol = 'avgRank'; // 預設使用綜合排名排序
-let sortAsc = true;      // 排名數字越小越前面
+let currentView = 'matrix'; // 控制當前顯示視圖 (matrix / table)
+
+// 矩陣排序狀態
+let sortCol = 'avgRank'; 
+let sortAsc = true;      
+
+// 表格排序狀態
+let flatSortCol = 'Bank';
+let flatSortAsc = true;
+
 let chartInst = null;
 
 // ==========================================
@@ -201,46 +255,38 @@ async function init() {
         const res = await fetch(DATA_URL);
         let data = await res.json();
         
-        // 資料清洗與過濾
         data = data.filter(d => d.Rate && d.Rate !== '--');
-        
-        // 紀錄去重用 (合併多個大額條件取最高)
         const dedupMap = {};
 
         data.forEach(d => {
             d.Rate = parseFloat(d.Rate);
             d.Bank = d.Bank.replace(/^\d+/, '').replace(/\s+/g, '');
             
-            // 紀錄原始額度，供 tooltip 與細節圖使用
             d.OriginalQuota = d.Quota;
-
-            // 將所有非一般的額度歸類為 "大額"
             if (d.Quota !== '一般') d.Quota = '大額';
 
-            // 去重複：如果同一天、同銀行、同存期、同額度有多筆，保留最高利率
             const key = `${d.Date}|${d.Bank}|${d.Term}|${d.OriginalQuota}`;
             if (!dedupMap[key] || d.Rate > dedupMap[key].Rate) {
                 dedupMap[key] = d;
             }
         });
 
-        // 只保留目標存期的乾淨資料
         rawData = Object.values(dedupMap).filter(d => TARGET_TERMS.includes(d.Term));
 
-        // 提取獨立選項
         const dates = [...new Set(rawData.map(d => d.Date))].sort((a,b) => b.localeCompare(a)); 
         const banks = [...new Set(rawData.map(d => d.Bank))].sort();
         const quotas = [...new Set(rawData.map(d => d.Quota))].sort();
 
-        // 填入 Date 下拉
-        const dateSel = document.getElementById('dateSelect');
-        dates.forEach(date => dateSel.add(new Option(date, date)));
+        // 設定日曆選擇器範圍與預設值
+        const dateInput = document.getElementById('dateSelect');
+        dateInput.max = dates[0];
+        dateInput.min = dates[dates.length - 1];
+        dateInput.value = dates[0];
 
-        // 建立客製化多選選單
+        // 建立客製化下拉選單 (移除了銀行階層，改為純列表)
         buildCheckboxes('chk-bank', banks, true);
         buildCheckboxes('chk-term', TARGET_TERMS, true);
         
-        // 額度預設勾選「大額」
         const defaultQuotas = quotas.filter(q => q === '大額');
         buildCheckboxes('chk-quota', quotas, false, defaultQuotas);
 
@@ -253,7 +299,7 @@ async function init() {
 }
 
 // ==========================================
-// 3. UI 元件邏輯 (客製下拉多選)
+// 3. UI 元件邏輯 (客製下拉多選 & 檢視切換 & 複製)
 // ==========================================
 function buildCheckboxes(containerId, items, checkAll, defaultCheckedItems = []) {
     const container = document.getElementById(containerId);
@@ -294,16 +340,66 @@ function getChecked(containerId) {
 }
 
 function updateLabels() {
-    const bCount = getChecked('chk-bank').length;
-    const tCount = getChecked('chk-term').length;
-    const qCount = getChecked('chk-quota').length;
-    document.getElementById('lbl-bank').innerText = bCount > 0 ? `已選 ${bCount} 家` : '請選擇';
-    document.getElementById('lbl-term').innerText = tCount > 0 ? `已選 ${tCount} 項` : '請選擇';
-    document.getElementById('lbl-quota').innerText = qCount > 0 ? `已選 ${qCount} 項` : '請選擇';
+    const banks = getChecked('chk-bank');
+    const terms = getChecked('chk-term');
+    const quotas = getChecked('chk-quota');
+    
+    document.getElementById('lbl-bank').innerText = banks.length > 0 ? `已選 ${banks.length} 家` : '請選擇';
+    document.getElementById('lbl-term').innerText = terms.length > 0 ? terms.join(', ') : '請選擇';
+    document.getElementById('lbl-quota').innerText = quotas.length > 0 ? quotas.join(', ') : '請選擇';
+}
+
+function switchView(view) {
+    currentView = view;
+    document.getElementById('btnMatrix').classList.toggle('active', view === 'matrix');
+    document.getElementById('btnTable').classList.toggle('active', view === 'table');
+    
+    const tableEl = document.getElementById('dataTable');
+    if (view === 'matrix') {
+        tableEl.classList.add('matrix-mode');
+        tableEl.classList.remove('table-mode');
+    } else {
+        tableEl.classList.add('table-mode');
+        tableEl.classList.remove('matrix-mode');
+    }
+    
+    processAndRender();
+}
+
+function copyTable() {
+    const table = document.getElementById('dataTable');
+    let tsv = "";
+    for (let i = 0; i < table.rows.length; i++) {
+        let rowData = [];
+        const row = table.rows[i];
+        for (let j = 0; j < row.cells.length; j++) {
+            // 抓取文字，移除排序符號與多餘換行
+            let text = row.cells[j].innerText.trim();
+            text = text.replace(/[↑↓↕]/g, '').trim(); 
+            text = text.replace(/\n/g, ' / '); 
+            rowData.push(text);
+        }
+        tsv += rowData.join("\t") + "\n";
+    }
+    
+    const el = document.createElement('textarea');
+    el.value = tsv;
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+
+    // 顯示快閃訊息
+    const toast = document.getElementById('toastMsg');
+    toast.innerText = `✅ ${currentView === 'matrix' ? '矩陣' : '表格'}已連同表頭複製到剪貼簿`;
+    toast.classList.add('show');
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 2500);
 }
 
 // ==========================================
-// 4. 資料處理與表格渲染 (矩陣核心與平均排名邏輯)
+// 4. 資料處理與表格渲染 (矩陣與扁平表格渲染)
 // ==========================================
 function processAndRender() {
     const date = document.getElementById('dateSelect').value;
@@ -311,7 +407,6 @@ function processAndRender() {
     const selTerms = TARGET_TERMS.filter(t => getChecked('chk-term').includes(t)); 
     const selQuotas = getChecked('chk-quota');
 
-    // 1. 篩選出當日符合條件的資料
     const currentData = rawData.filter(d => 
         d.Date === date && 
         selBanks.includes(d.Bank) && 
@@ -319,7 +414,12 @@ function processAndRender() {
         selQuotas.includes(d.Quota)
     );
 
-    // 2. 轉換為按銀行與存期分組的結構
+    if (currentView === 'table') {
+        renderFlatTable(currentData);
+        return;
+    }
+
+    // --- 矩陣模式 ---
     const grouped = {};
     currentData.forEach(d => {
         if (!grouped[d.Bank]) grouped[d.Bank] = {};
@@ -327,7 +427,6 @@ function processAndRender() {
         grouped[d.Bank][d.Term].push(d);
     });
 
-    // 3. 計算各存期的排名陣列，用於計算綜合平均排名
     const termRankingScale = {};
     selTerms.forEach(term => {
         let termRates = [];
@@ -335,10 +434,8 @@ function processAndRender() {
             if (grouped[bank][term] && grouped[bank][term].length > 0) {
                 let maxRate = Math.max(...grouped[bank][term].map(r => r.Rate));
                 termRates.push(maxRate);
-                grouped[bank][term].resolvedMaxRate = maxRate; // 暫存最大值
             }
         }
-        // 將該存期所有出現過的利率獨立出來並降冪排序，作為排名參考
         termRankingScale[term] = [...new Set(termRates)].sort((a, b) => b - a);
     });
 
@@ -346,7 +443,7 @@ function processAndRender() {
     let colMaxRates = {};
     let overallMaxRate = -1;
 
-    // 4. 計算單一儲存格最佳解與綜合排名 (並組合 Tooltip)
+    // 計算單一儲存格最佳解與綜合排名 (並組合 Tooltip)
     for (const bank in grouped) {
         let rowObj = { Bank: bank };
         let rankSum = 0;
@@ -367,26 +464,22 @@ function processAndRender() {
                     rate: maxRate, 
                     quota: maxRecord.Quota, 
                     originalQuota: maxRecord.OriginalQuota,
-                    tooltipText: tooltipText // 將組合好的文字存起來
+                    tooltipText: tooltipText 
                 };
                 
-                // 找出這個利率在該存期中的名次
                 let currentRank = termRankingScale[term].indexOf(maxRate) + 1;
                 rankSum += currentRank;
                 rankCount++;
                 
-                // 統計全域與欄位最大值
                 if (!colMaxRates[term] || maxRate > colMaxRates[term]) colMaxRates[term] = maxRate;
                 if (maxRate > overallMaxRate) overallMaxRate = maxRate;
             }
         });
 
-        // 該銀行的綜合平均排名
         rowObj.avgRank = rankCount > 0 ? (rankSum / rankCount) : 999;
         matrixData.push(rowObj);
     }
 
-    // 5. 執行排序 (改回比對單一數值)
     matrixData.sort((a, b) => {
         if (sortCol === 'avgRank') {
             return sortAsc ? a.avgRank - b.avgRank : b.avgRank - a.avgRank;
@@ -401,7 +494,6 @@ function processAndRender() {
         }
     });
 
-    // 6. 渲染表頭
     const thead = document.getElementById('tableHead');
     let thHtml = `<th onclick="setSort('avgRank')" style="width: 50px;">排名 ${sortIndicator('avgRank')}</th>`;
     thHtml += `<th onclick="setSort('Bank')">銀行 ${sortIndicator('Bank')}</th>`;
@@ -411,18 +503,16 @@ function processAndRender() {
     });
     thead.innerHTML = `<tr>${thHtml}</tr>`;
 
-    // 7. 渲染表格主體 (改回單一顯示，加入自訂 Tooltip)
     const tbody = document.getElementById('tableBody');
     tbody.innerHTML = '';
     
     if (matrixData.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="${selTerms.length + 2}">無符合條件之資料</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${selTerms.length + 2}">該日無符合條件之資料，請嘗試更換日期</td></tr>`;
         return;
     }
 
     matrixData.forEach((row, index) => {
         const tr = document.createElement('tr');
-        // 顯示為目前的排序名次
         let tdHtml = `<td style="color: var(--text-light); font-weight: bold;">${index + 1}</td>`;
         tdHtml += `<td>${row.Bank}</td>`;
         
@@ -433,9 +523,8 @@ function processAndRender() {
                 if (cell.rate === overallMaxRate) classes += " overall-max";
                 else if (cell.rate === colMaxRates[term]) classes += " col-max";
                 
-                // 把 title 替換成剛剛組合好的 tooltipText
                 tdHtml += `<td>
-                    <span class="${classes}" title="${cell.tooltipText}" onclick="openChart('${row.Bank}', '${term}', '${cell.quota}', '${cell.originalQuota}')">
+                    <span class="${classes}" title="${cell.tooltipText}" onclick="openChart('${row.Bank}', '${term}', '${cell.originalQuota}')">
                         ${cell.rate.toFixed(3)}
                     </span>
                 </td>`;
@@ -448,28 +537,101 @@ function processAndRender() {
     });
 }
 
-// 處理排序點擊
+// ==========================================
+// 表格模式渲染邏輯 (支援排序與歷史走勢)
+// ==========================================
+function renderFlatTable(data) {
+    const thead = document.getElementById('tableHead');
+    thead.innerHTML = `<tr>
+        <th style="text-align: left;" onclick="setFlatSort('Bank')">銀行 ${flatSortIndicator('Bank')}</th>
+        <th onclick="setFlatSort('Item')">利率項目 ${flatSortIndicator('Item')}</th>
+        <th onclick="setFlatSort('Term')">存期 ${flatSortIndicator('Term')}</th>
+        <th onclick="setFlatSort('OriginalQuota')">原始額度 ${flatSortIndicator('OriginalQuota')}</th>
+        <th onclick="setFlatSort('Rate')">固定利率 (%) ${flatSortIndicator('Rate')}</th>
+    </tr>`;
+
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = '';
+
+    if (data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5">該日無符合條件之資料，請嘗試更換日期</td></tr>`;
+        return;
+    }
+
+    // 表格資料排序邏輯
+    data.sort((a, b) => {
+        let valA = a[flatSortCol];
+        let valB = b[flatSortCol];
+
+        // 針對存期進行自訂排序
+        if (flatSortCol === 'Term') {
+            valA = TARGET_TERMS.indexOf(valA);
+            valB = TARGET_TERMS.indexOf(valB);
+        }
+
+        if (valA < valB) return flatSortAsc ? -1 : 1;
+        if (valA > valB) return flatSortAsc ? 1 : -1;
+        return 0;
+    });
+
+    data.forEach(d => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="text-align: left; font-weight: 600;">${d.Bank}</td>
+            <td>${d.Item}</td>
+            <td>${d.Term}</td>
+            <td>${d.OriginalQuota}</td>
+            <td>
+                <span class="rate-link" style="color: var(--primary); font-weight: bold;" 
+                      onclick="openChart('${d.Bank}', '${d.Term}', '${d.OriginalQuota}')">
+                    ${d.Rate.toFixed(3)}
+                </span>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
 function setSort(col) {
+    if (currentView !== 'matrix') return;
     if (sortCol === col) {
         sortAsc = !sortAsc;
     } else {
         sortCol = col; 
-        // 排名與銀行名稱預設為從小到大/筆畫排序，利率類預設為由大到小(尋找高利)
         sortAsc = (col === 'Bank' || col === 'avgRank'); 
     }
     processAndRender();
 }
 
 function sortIndicator(col) {
+    if (currentView !== 'matrix') return '';
     if (sortCol !== col) return '<span style="color:#cbd5e1;">↕</span>';
     return sortAsc ? '↑' : '↓';
 }
 
+function setFlatSort(col) {
+    if (currentView !== 'table') return;
+    if (flatSortCol === col) {
+        flatSortAsc = !flatSortAsc;
+    } else {
+        flatSortCol = col;
+        flatSortAsc = (col === 'Bank' || col === 'Term' || col === 'Item' || col === 'OriginalQuota'); 
+    }
+    processAndRender();
+}
+
+function flatSortIndicator(col) {
+    if (currentView !== 'table') return '';
+    if (flatSortCol !== col) return '<span style="color:#cbd5e1;">↕</span>';
+    return flatSortAsc ? '↑' : '↓';
+}
+
 // ==========================================
-// 5. 彈出走勢圖 (Chart.js)
+// 5. 彈出走勢圖 (Chart.js) - 確保使用原始額度篩選
 // ==========================================
-function openChart(bank, term, quota, originalQuota) {
-    const history = rawData.filter(d => d.Bank === bank && d.Term === term && d.Quota === quota)
+function openChart(bank, term, originalQuota) {
+    // 嚴格透過 OriginalQuota (真實金額) 去抓歷史軌跡，避免大額與一般混圖
+    const history = rawData.filter(d => d.Bank === bank && d.Term === term && d.OriginalQuota === originalQuota)
                            .sort((a, b) => new Date(a.Date) - new Date(b.Date)); 
 
     document.getElementById('modalTitle').innerText = `${bank} - ${term}定存走勢`;
