@@ -2,7 +2,7 @@ name: TW BANK RATES UPDATE
 
 on:
   schedule:
-    - cron: '30 1 * * *'
+    - cron: '15 4 * * *'
   workflow_dispatch: # 保留這個設定，讓您可以隨時在 GitHub 網頁上手動點擊執行測試
 
 jobs:
