@@ -14,7 +14,7 @@
             --text-light: #64748b;
             --border: #cbd5e1;
             --hover: #f1f5f9;
-            --highlight: #ef4444; /* 紅字最高 */
+            --highlight: #ef4444; 
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
@@ -29,26 +29,24 @@
         }
         h1 { font-size: 1.4rem; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
         
-        /* 篩選器：客製化下拉多選 */
         .controls {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            display: flex;
+            flex-wrap: wrap;
             gap: 12px;
             margin-bottom: 15px;
             background: var(--surface);
             padding: 12px 15px;
             border-radius: 8px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            align-items: flex-end;
         }
-        .control-group { position: relative; }
+        .control-group { position: relative; flex: 1; min-width: 140px; }
         label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-light); margin-bottom: 4px; }
         
-        /* 單選 Date */
         input.date-select {
             width: 100%; padding: 5px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; background: #fff; box-sizing: border-box; cursor: pointer;
         }
 
-        /* 仿製的多選下拉選單 */
         .dropdown {
             width: 100%; border: 1px solid var(--border); border-radius: 6px; background: #fff; cursor: pointer; user-select: none; box-sizing: border-box;
         }
@@ -63,17 +61,17 @@
         .dropdown-item { padding: 5px 10px; display: flex; align-items: center; font-size: 0.85rem; }
         .dropdown-item:hover { background: var(--hover); }
         .dropdown-item input { margin-right: 8px; cursor: pointer; }
+        .dropdown-group-title { padding: 5px 10px; font-size: 0.8rem; font-weight: bold; background: #e2e8f0; color: #334155; }
         
-        /* 視圖切換與動作按鈕 */
-        .action-buttons { display: flex; gap: 5px; }
+        .action-buttons { display: flex; gap: 5px; height: 30px; }
         .action-buttons button {
-            flex: 1; padding: 6px; border: 1px solid var(--border); background: white; color: var(--text);
+            flex: 1; padding: 0 12px; border: 1px solid var(--border); background: white; color: var(--text);
             border-radius: 4px; cursor: pointer; font-size: 0.8rem; font-weight: 600;
+            display: flex; align-items: center; justify-content: center;
         }
         .action-buttons button.active { background: var(--primary); color: white; border-color: var(--primary); }
         .action-buttons button:hover:not(.active) { background: var(--hover); }
 
-        /* 矩陣表格設計 */
         .table-wrapper {
             background: var(--surface);
             border-radius: 8px;
@@ -102,12 +100,10 @@
         }
         thead th:hover { background: #cbd5e1; }
         
-        /* 銀行名稱固定樣式 (矩陣模式) */
+        /* 銀行名稱固定樣式 */
         .matrix-mode tbody td:nth-child(2) { font-weight: 600; background: var(--surface); text-align: left; }
-        /* 銀行名稱固定樣式 (表格模式) */
         .table-mode tbody td:nth-child(1) { font-weight: 600; background: var(--surface); text-align: left; }
 
-        /* 利率數值樣式 */
         .rate-link {
             text-decoration: underline;
             text-underline-offset: 3px;
@@ -117,13 +113,18 @@
             border-radius: 4px;
         }
         .rate-link:hover { background: #eff6ff; color: var(--primary); }
+        .single-bank-link {
+            color: var(--primary);
+            text-decoration: underline;
+            cursor: pointer;
+            text-underline-offset: 3px;
+        }
+        .single-bank-link:hover { color: #1e40af; }
         .col-max { color: var(--primary); font-weight: 900; } 
         .overall-max { color: var(--highlight); font-weight: 900; }
-        
         .empty-cell { color: #94a3b8; }
         .note { font-size: 0.75rem; color: var(--text-light); margin-top: 8px; }
 
-        /* 彈出視窗 */
         .modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000;
@@ -131,37 +132,33 @@
         .modal-content {
             background: var(--surface); padding: 15px; border-radius: 8px; width: 90%; max-width: 600px; position: relative;
         }
-        .close-btn { position: absolute; top: 10px; right: 15px; font-size: 1.5rem; cursor: pointer; color: var(--text-light); }
+        /* 針對單一銀行 Modal 的表格容器，防止滾動穿透 */
+        .modal-scroll-wrapper {
+            max-height: 60vh; 
+            overflow-y: auto; 
+            overscroll-behavior: contain; /* 避免背景滾動 */
+            border: 1px solid var(--border);
+            border-radius: 4px;
+        }
         
-        /* 複製快閃訊息 (Toast) */
+        .close-btn { position: absolute; top: 10px; right: 15px; font-size: 1.5rem; cursor: pointer; color: var(--text-light); z-index: 5; }
+        
         .toast {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 15px 30px;
-            border-radius: 8px;
-            font-size: 1.1rem;
-            font-weight: bold;
-            z-index: 9999;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease, visibility 0.3s ease;
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8); color: white; padding: 15px 30px; border-radius: 8px;
+            font-size: 1.1rem; font-weight: bold; z-index: 9999;
+            opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease;
         }
-        .toast.show {
-            opacity: 1;
-            visibility: visible;
-        }
+        .toast.show { opacity: 1; visibility: visible; }
+
+        .hidden { display: none !important; }
+        .chart-wrapper { background: var(--surface); border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 15px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>
-        🏦 銀行牌告利率追蹤
-    </h1>
+    <h1>🏦 銀行牌告利率追蹤</h1>
     
     <div class="controls">
         <div class="control-group">
@@ -169,87 +166,122 @@
             <input type="date" id="dateSelect" class="date-select" onchange="processAndRender()">
         </div>
         <div class="control-group">
-            <label>銀行</label>
+            <label>銀行篩選</label>
             <div class="dropdown" id="dd-bank" onclick="toggleDD('dd-bank', event)">
                 <div class="dropdown-header"><span id="lbl-bank">載入中...</span> ▾</div>
                 <div class="dropdown-content" id="chk-bank" onclick="event.stopPropagation()"></div>
             </div>
         </div>
-        <div class="control-group">
+        <div class="control-group" style="max-width: 120px;">
             <label>存期</label>
             <div class="dropdown" id="dd-term" onclick="toggleDD('dd-term', event)">
                 <div class="dropdown-header"><span id="lbl-term">載入中...</span> ▾</div>
                 <div class="dropdown-content" id="chk-term" onclick="event.stopPropagation()"></div>
             </div>
         </div>
-        <div class="control-group">
-            <label>額度 (大額/一般)</label>
+        <div class="control-group" style="max-width: 150px;">
+            <label>額度</label>
             <div class="dropdown" id="dd-quota" onclick="toggleDD('dd-quota', event)">
                 <div class="dropdown-header"><span id="lbl-quota">載入中...</span> ▾</div>
                 <div class="dropdown-content" id="chk-quota" onclick="event.stopPropagation()"></div>
             </div>
         </div>
-        <!-- 檢視切換與匯出 -->
-        <div class="control-group">
-            <label>顯示模式與匯出</label>
+        <div class="control-group" style="max-width: 180px;">
+            <label>顯示模式</label>
             <div class="action-buttons">
                 <button id="btnMatrix" class="active" onclick="switchView('matrix')">矩陣</button>
                 <button id="btnTable" onclick="switchView('table')">表格</button>
-                <button onclick="copyTable()">📋 複製</button>
+                <button id="btnScatter" onclick="switchView('scatter')">分佈圖</button>
+            </div>
+        </div>
+        <!-- 移除操作標籤，直接放複製按鈕 -->
+        <div class="control-group" style="flex: 0 0 auto;">
+            <div class="action-buttons" style="margin-top: 21px;">
+                <button onclick="copyTable()">📋 複製表格</button>
             </div>
         </div>
     </div>
 
-    <div class="table-wrapper">
+    <div class="table-wrapper" id="tableWrapper">
         <table id="dataTable" class="matrix-mode">
-            <thead id="tableHead">
-                <!-- 動態產生表頭 -->
-            </thead>
+            <thead id="tableHead"></thead>
             <tbody id="tableBody">
                 <tr><td colspan="7" style="text-align: center; padding: 20px;">資料載入中，請稍候...</td></tr>
             </tbody>
         </table>
     </div>
-    <div class="note">* 額度非「一般」者皆統一歸類為「大額」，矩陣表格預設顯示同條件下最高利率。游標懸停 (Hover) 數值可查看所有額度級距報價。點擊具底線之數值可查看歷史走勢。</div>
+    
+    <div class="chart-wrapper hidden" id="scatterWrapper">
+        <canvas id="scatterChart" height="110"></canvas>
+    </div>
+    <div class="note">* 額度非「一般」者皆統一歸類為「大額」，矩陣表格預設顯示最高利率。點擊矩陣中藍色底線之銀行名稱可查看單一銀行歷史紀錄。點擊數值可看走勢圖。</div>
 </div>
 
-<!-- Modal 走勢圖 -->
+<div id="singleBankModal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeSingleBankModal()">&times;</span>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-right: 20px;">
+            <h2 id="singleBankTitle" style="font-size: 1.2rem; margin: 0;"></h2>
+            <button onclick="copySingleBankTable()" style="padding: 6px 12px; border: 1px solid var(--border); background: white; border-radius: 4px; cursor: pointer; font-size: 0.8rem; font-weight: 600;">📋 複製</button>
+        </div>
+        <div class="modal-scroll-wrapper">
+            <table class="table-mode" id="singleBankTable">
+                <thead id="singleBankHead"></thead>
+                <tbody id="singleBankBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
 <div id="chartModal" class="modal">
     <div class="modal-content">
         <span class="close-btn" onclick="closeModal()">&times;</span>
         <h2 id="modalTitle" style="font-size: 1.1rem; margin-top: 0;">歷史走勢</h2>
         <p id="modalSubtitle" style="font-size: 0.85rem; color: #64748b; margin-top: -8px; margin-bottom: 12px;"></p>
+        <div class="control-group" id="chartQuotaControl" style="margin-bottom: 10px;">
+            <label>額度選擇</label>
+            <select id="quotaSelect" class="date-select" onchange="onQuotaSelectChange()"></select>
+        </div>
         <canvas id="detailChart" height="100"></canvas>
     </div>
 </div>
 
-<!-- 快閃訊息 -->
 <div id="toastMsg" class="toast">✅ 已複製到剪貼簿</div>
 
 <script>
-// ==========================================
-// 1. 全域變數與常數
-// ==========================================
 const DATA_URL = 'https://raw.githubusercontent.com/andychu221/tw-bank-rates-tracker/main/data/rates_2026.json';
 const TARGET_TERMS = ['1月', '3月', '6月', '9月', '1年']; 
+const BANK_CATEGORIES = ['公股銀行', '民營大型', '外國銀行', '民營小型'];
+
+// 色彩對應：公股(藍), 民營大型(橘), 外國銀行(綠), 民營小型(紫)
+const CATEGORY_COLORS = {
+    '公股銀行': '#2563eb',
+    '民營大型': '#f97316',
+    '外國銀行': '#10b981',
+    '民營小型': '#8b5cf6'
+};
 
 let rawData = [];
 let matrixData = []; 
-let currentView = 'matrix'; // 控制當前顯示視圖 (matrix / table)
+let currentView = 'matrix'; 
 
-// 矩陣排序狀態
 let sortCol = 'avgRank'; 
 let sortAsc = true;      
-
-// 表格排序狀態
 let flatSortCol = 'Bank';
 let flatSortAsc = true;
 
 let chartInst = null;
+let scatterChartInst = null;
+let currentChart = { bank: null, term: null, quotaFilter: [], selectedQuota: '__max__' };
 
-// ==========================================
-// 2. 初始化與資料載入
-// ==========================================
+function getBankCategory(bankName) {
+    // 透過關鍵字配對，避免全名/簡稱差異
+    if (['中國信託', '中信', '國泰', '富邦', '玉山', '台新', '永豐'].some(k => bankName.includes(k))) return '民營大型';
+    if (['三井', '三菱', '中國台北', '中國建設', '交銀', '匯豐', '滙豐', '印尼', '大華', '安智', '德意志', '摩根', '日商', '星展', '東方匯理', '法國', '渣打', '澳盛', '美國', '西班牙', '韓商', '首都', '東亞'].some(k => bankName.includes(k))) return '外國銀行';
+    if (['一銀', '第一', '兆豐', '中小企銀', '企銀', '合庫', '合作金庫', '土銀', '土地', '彰銀', '彰化', '臺銀', '臺灣', '華銀', '華南', '農金', '農業', '郵政'].some(k => bankName.includes(k))) return '公股銀行';
+    return '民營小型';
+}
+
 async function init() {
     try {
         const res = await fetch(DATA_URL);
@@ -261,7 +293,6 @@ async function init() {
         data.forEach(d => {
             d.Rate = parseFloat(d.Rate);
             d.Bank = d.Bank.replace(/^\d+/, '').replace(/\s+/g, '');
-            
             d.OriginalQuota = d.Quota;
             if (d.Quota !== '一般') d.Quota = '大額';
 
@@ -277,16 +308,13 @@ async function init() {
         const banks = [...new Set(rawData.map(d => d.Bank))].sort();
         const quotas = [...new Set(rawData.map(d => d.Quota))].sort();
 
-        // 設定日曆選擇器範圍與預設值
         const dateInput = document.getElementById('dateSelect');
         dateInput.max = dates[0];
         dateInput.min = dates[dates.length - 1];
         dateInput.value = dates[0];
 
-        // 建立客製化下拉選單 (移除了銀行階層，改為純列表)
-        buildCheckboxes('chk-bank', banks, true);
+        buildBankCheckboxes('chk-bank', banks);
         buildCheckboxes('chk-term', TARGET_TERMS, true);
-        
         const defaultQuotas = quotas.filter(q => q === '大額');
         buildCheckboxes('chk-quota', quotas, false, defaultQuotas);
 
@@ -298,9 +326,27 @@ async function init() {
     }
 }
 
-// ==========================================
-// 3. UI 元件邏輯 (客製下拉多選 & 檢視切換 & 複製)
-// ==========================================
+function buildBankCheckboxes(containerId, banks) {
+    const container = document.getElementById(containerId);
+    let html = `<label class="dropdown-item" style="border-bottom: 1px solid #e2e8f0; font-weight: bold;">
+                    <input type="checkbox" onchange="toggleAll('${containerId}', this.checked)" checked> (全選/全不選)
+                </label>`;
+    
+    // 依分類建立選項
+    BANK_CATEGORIES.forEach(category => {
+        const categoryBanks = banks.filter(b => getBankCategory(b) === category);
+        if (categoryBanks.length > 0) {
+            html += `<div class="dropdown-group-title">${category}</div>`;
+            categoryBanks.forEach(bank => {
+                html += `<label class="dropdown-item">
+                            <input type="checkbox" value="${bank}" checked onchange="updateLabels(); processAndRender();"> ${bank}
+                         </label>`;
+            });
+        }
+    });
+    container.innerHTML = html;
+}
+
 function buildCheckboxes(containerId, items, checkAll, defaultCheckedItems = []) {
     const container = document.getElementById(containerId);
     let html = `<label class="dropdown-item" style="border-bottom: 1px solid #e2e8f0; font-weight: bold;">
@@ -343,7 +389,6 @@ function updateLabels() {
     const banks = getChecked('chk-bank');
     const terms = getChecked('chk-term');
     const quotas = getChecked('chk-quota');
-    
     document.getElementById('lbl-bank').innerText = banks.length > 0 ? `已選 ${banks.length} 家` : '請選擇';
     document.getElementById('lbl-term').innerText = terms.length > 0 ? terms.join(', ') : '請選擇';
     document.getElementById('lbl-quota').innerText = quotas.length > 0 ? quotas.join(', ') : '請選擇';
@@ -353,17 +398,25 @@ function switchView(view) {
     currentView = view;
     document.getElementById('btnMatrix').classList.toggle('active', view === 'matrix');
     document.getElementById('btnTable').classList.toggle('active', view === 'table');
+    document.getElementById('btnScatter').classList.toggle('active', view === 'scatter');
     
     const tableEl = document.getElementById('dataTable');
     if (view === 'matrix') {
-        tableEl.classList.add('matrix-mode');
-        tableEl.classList.remove('table-mode');
+        tableEl.classList.add('matrix-mode'); tableEl.classList.remove('table-mode');
     } else {
-        tableEl.classList.add('table-mode');
-        tableEl.classList.remove('matrix-mode');
+        tableEl.classList.add('table-mode'); tableEl.classList.remove('matrix-mode');
     }
-    
+
+    document.getElementById('tableWrapper').classList.toggle('hidden', view === 'scatter');
+    document.getElementById('scatterWrapper').classList.toggle('hidden', view !== 'scatter');
     processAndRender();
+}
+
+function showToast(msg) {
+    const toast = document.getElementById('toastMsg');
+    toast.innerText = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2500);
 }
 
 function copyTable() {
@@ -373,34 +426,17 @@ function copyTable() {
         let rowData = [];
         const row = table.rows[i];
         for (let j = 0; j < row.cells.length; j++) {
-            // 抓取文字，移除排序符號與多餘換行
             let text = row.cells[j].innerText.trim();
-            text = text.replace(/[↑↓↕]/g, '').trim(); 
-            text = text.replace(/\n/g, ' / '); 
+            text = text.replace(/[↑↓↕]/g, '').trim().replace(/\n/g, ' / '); 
             rowData.push(text);
         }
         tsv += rowData.join("\t") + "\n";
     }
-    
-    const el = document.createElement('textarea');
-    el.value = tsv;
-    document.body.appendChild(el);
-    el.select();
-    document.execCommand('copy');
-    document.body.removeChild(el);
-
-    // 顯示快閃訊息
-    const toast = document.getElementById('toastMsg');
-    toast.innerText = `✅ ${currentView === 'matrix' ? '矩陣' : '表格'}已連同表頭複製到剪貼簿`;
-    toast.classList.add('show');
-    setTimeout(() => {
-        toast.classList.remove('show');
-    }, 2500);
+    const el = document.createElement('textarea'); el.value = tsv; document.body.appendChild(el); el.select();
+    document.execCommand('copy'); document.body.removeChild(el);
+    showToast(`✅ ${currentView === 'matrix' ? '矩陣' : '表格'}已連同表頭複製到剪貼簿`);
 }
 
-// ==========================================
-// 4. 資料處理與表格渲染 (矩陣與扁平表格渲染)
-// ==========================================
 function processAndRender() {
     const date = document.getElementById('dateSelect').value;
     const selBanks = getChecked('chk-bank');
@@ -408,18 +444,13 @@ function processAndRender() {
     const selQuotas = getChecked('chk-quota');
 
     const currentData = rawData.filter(d => 
-        d.Date === date && 
-        selBanks.includes(d.Bank) && 
-        selTerms.includes(d.Term) && 
-        selQuotas.includes(d.Quota)
+        d.Date === date && selBanks.includes(d.Bank) && selTerms.includes(d.Term) && selQuotas.includes(d.Quota)
     );
 
-    if (currentView === 'table') {
-        renderFlatTable(currentData);
-        return;
-    }
+    if (currentView === 'table') return renderFlatTable(currentData);
+    if (currentView === 'scatter') return renderScatterChart(currentData, selTerms);
 
-    // --- 矩陣模式 ---
+    // 矩陣模式
     const grouped = {};
     currentData.forEach(d => {
         if (!grouped[d.Bank]) grouped[d.Bank] = {};
@@ -431,10 +462,7 @@ function processAndRender() {
     selTerms.forEach(term => {
         let termRates = [];
         for (const bank in grouped) {
-            if (grouped[bank][term] && grouped[bank][term].length > 0) {
-                let maxRate = Math.max(...grouped[bank][term].map(r => r.Rate));
-                termRates.push(maxRate);
-            }
+            if (grouped[bank][term] && grouped[bank][term].length > 0) termRates.push(Math.max(...grouped[bank][term].map(r => r.Rate)));
         }
         termRankingScale[term] = [...new Set(termRates)].sort((a, b) => b - a);
     });
@@ -443,49 +471,32 @@ function processAndRender() {
     let colMaxRates = {};
     let overallMaxRate = -1;
 
-    // 計算單一儲存格最佳解與綜合排名 (並組合 Tooltip)
     for (const bank in grouped) {
-        let rowObj = { Bank: bank };
-        let rankSum = 0;
-        let rankCount = 0;
+        let rowObj = { Bank: bank, category: getBankCategory(bank) };
+        let rankSum = 0; let rankCount = 0;
         
         selTerms.forEach(term => {
             const records = grouped[bank][term];
             if (records && records.length > 0) {
-                // 將該儲存格內的所有紀錄按利率「由大到小」排序
                 const sortedRecords = [...records].sort((a, b) => b.Rate - a.Rate);
                 const maxRecord = sortedRecords[0];
-                const maxRate = maxRecord.Rate;
-                
-                // 產生 Tooltip 多行文字 (例如: 1億 -> 1.740%)
                 const tooltipText = sortedRecords.map(r => `${r.OriginalQuota} -> ${r.Rate.toFixed(3)}%`).join('\n');
                 
-                rowObj[term] = { 
-                    rate: maxRate, 
-                    quota: maxRecord.Quota, 
-                    originalQuota: maxRecord.OriginalQuota,
-                    tooltipText: tooltipText 
-                };
-                
-                let currentRank = termRankingScale[term].indexOf(maxRate) + 1;
-                rankSum += currentRank;
-                rankCount++;
-                
-                if (!colMaxRates[term] || maxRate > colMaxRates[term]) colMaxRates[term] = maxRate;
-                if (maxRate > overallMaxRate) overallMaxRate = maxRate;
+                rowObj[term] = { rate: maxRecord.Rate, quota: maxRecord.Quota, originalQuota: maxRecord.OriginalQuota, tooltipText: tooltipText };
+                let currentRank = termRankingScale[term].indexOf(maxRecord.Rate) + 1;
+                rankSum += currentRank; rankCount++;
+                if (!colMaxRates[term] || maxRecord.Rate > colMaxRates[term]) colMaxRates[term] = maxRecord.Rate;
+                if (maxRecord.Rate > overallMaxRate) overallMaxRate = maxRecord.Rate;
             }
         });
-
         rowObj.avgRank = rankCount > 0 ? (rankSum / rankCount) : 999;
         matrixData.push(rowObj);
     }
 
     matrixData.sort((a, b) => {
-        if (sortCol === 'avgRank') {
-            return sortAsc ? a.avgRank - b.avgRank : b.avgRank - a.avgRank;
-        } else if (sortCol === 'Bank') {
-            return sortAsc ? a.Bank.localeCompare(b.Bank) : b.Bank.localeCompare(a.Bank);
-        } else {
+        if (sortCol === 'avgRank') return sortAsc ? a.avgRank - b.avgRank : b.avgRank - a.avgRank;
+        else if (sortCol === 'Bank') return sortAsc ? a.Bank.localeCompare(b.Bank) : b.Bank.localeCompare(a.Bank);
+        else {
             let valA = a[sortCol] ? a[sortCol].rate : -1;
             let valB = b[sortCol] ? b[sortCol].rate : -1;
             if (valA < valB) return sortAsc ? -1 : 1;
@@ -505,16 +516,15 @@ function processAndRender() {
 
     const tbody = document.getElementById('tableBody');
     tbody.innerHTML = '';
-    
     if (matrixData.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="${selTerms.length + 2}">該日無符合條件之資料，請嘗試更換日期</td></tr>`;
-        return;
+        tbody.innerHTML = `<tr><td colspan="${selTerms.length + 2}">該日無符合條件之資料</td></tr>`; return;
     }
 
     matrixData.forEach((row, index) => {
         const tr = document.createElement('tr');
         let tdHtml = `<td style="color: var(--text-light); font-weight: bold;">${index + 1}</td>`;
-        tdHtml += `<td>${row.Bank}</td>`;
+        // 將銀行名稱改為可點擊以開啟單一銀行 Modal
+        tdHtml += `<td class="single-bank-link" onclick="openSingleBank('${row.Bank}')" title="點擊查看 ${row.Bank} 歷史紀錄">${row.Bank}</td>`;
         
         selTerms.forEach(term => {
             const cell = row[term];
@@ -522,24 +532,15 @@ function processAndRender() {
                 let classes = "rate-link";
                 if (cell.rate === overallMaxRate) classes += " overall-max";
                 else if (cell.rate === colMaxRates[term]) classes += " col-max";
-                
-                tdHtml += `<td>
-                    <span class="${classes}" title="${cell.tooltipText}" onclick="openChart('${row.Bank}', '${term}', '${cell.originalQuota}')">
-                        ${cell.rate.toFixed(3)}
-                    </span>
-                </td>`;
+                tdHtml += `<td><span class="${classes}" title="${cell.tooltipText}" onclick="openChart('${row.Bank}', '${term}', '${cell.originalQuota}')">${cell.rate.toFixed(3)}</span></td>`;
             } else {
                 tdHtml += `<td class="empty-cell">-</td>`;
             }
         });
-        tr.innerHTML = tdHtml;
-        tbody.appendChild(tr);
+        tr.innerHTML = tdHtml; tbody.appendChild(tr);
     });
 }
 
-// ==========================================
-// 表格模式渲染邏輯 (支援排序與歷史走勢)
-// ==========================================
 function renderFlatTable(data) {
     const thead = document.getElementById('tableHead');
     thead.innerHTML = `<tr>
@@ -554,21 +555,12 @@ function renderFlatTable(data) {
     tbody.innerHTML = '';
 
     if (data.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5">該日無符合條件之資料，請嘗試更換日期</td></tr>`;
-        return;
+        tbody.innerHTML = `<tr><td colspan="5">該日無符合條件之資料</td></tr>`; return;
     }
 
-    // 表格資料排序邏輯
     data.sort((a, b) => {
-        let valA = a[flatSortCol];
-        let valB = b[flatSortCol];
-
-        // 針對存期進行自訂排序
-        if (flatSortCol === 'Term') {
-            valA = TARGET_TERMS.indexOf(valA);
-            valB = TARGET_TERMS.indexOf(valB);
-        }
-
+        let valA = a[flatSortCol]; let valB = b[flatSortCol];
+        if (flatSortCol === 'Term') { valA = TARGET_TERMS.indexOf(valA); valB = TARGET_TERMS.indexOf(valB); }
         if (valA < valB) return flatSortAsc ? -1 : 1;
         if (valA > valB) return flatSortAsc ? 1 : -1;
         return 0;
@@ -577,16 +569,11 @@ function renderFlatTable(data) {
     data.forEach(d => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td style="text-align: left; font-weight: 600;">${d.Bank}</td>
+            <td style="text-align: left; font-weight: 600;" class="single-bank-link" onclick="openSingleBank('${d.Bank}')" title="點擊查看 ${d.Bank} 歷史紀錄">${d.Bank}</td>
             <td>${d.Item}</td>
             <td>${d.Term}</td>
             <td>${d.OriginalQuota}</td>
-            <td>
-                <span class="rate-link" style="color: var(--primary); font-weight: bold;" 
-                      onclick="openChart('${d.Bank}', '${d.Term}', '${d.OriginalQuota}')">
-                    ${d.Rate.toFixed(3)}
-                </span>
-            </td>
+            <td><span class="rate-link" style="color: var(--primary); font-weight: bold;" onclick="openChart('${d.Bank}', '${d.Term}', '${d.OriginalQuota}')">${d.Rate.toFixed(3)}</span></td>
         `;
         tbody.appendChild(tr);
     });
@@ -594,55 +581,259 @@ function renderFlatTable(data) {
 
 function setSort(col) {
     if (currentView !== 'matrix') return;
-    if (sortCol === col) {
-        sortAsc = !sortAsc;
-    } else {
-        sortCol = col; 
-        sortAsc = (col === 'Bank' || col === 'avgRank'); 
-    }
+    if (sortCol === col) sortAsc = !sortAsc;
+    else { sortCol = col; sortAsc = (col === 'Bank' || col === 'avgRank'); }
     processAndRender();
 }
-
 function sortIndicator(col) {
     if (currentView !== 'matrix') return '';
-    if (sortCol !== col) return '<span style="color:#cbd5e1;">↕</span>';
-    return sortAsc ? '↑' : '↓';
+    return sortCol !== col ? '<span style="color:#cbd5e1;">↕</span>' : (sortAsc ? '↑' : '↓');
 }
-
 function setFlatSort(col) {
     if (currentView !== 'table') return;
-    if (flatSortCol === col) {
-        flatSortAsc = !flatSortAsc;
-    } else {
-        flatSortCol = col;
-        flatSortAsc = (col === 'Bank' || col === 'Term' || col === 'Item' || col === 'OriginalQuota'); 
-    }
+    if (flatSortCol === col) flatSortAsc = !flatSortAsc;
+    else { flatSortCol = col; flatSortAsc = (col === 'Bank' || col === 'Term' || col === 'Item' || col === 'OriginalQuota'); }
     processAndRender();
 }
-
 function flatSortIndicator(col) {
     if (currentView !== 'table') return '';
-    if (flatSortCol !== col) return '<span style="color:#cbd5e1;">↕</span>';
-    return flatSortAsc ? '↑' : '↓';
+    return flatSortCol !== col ? '<span style="color:#cbd5e1;">↕</span>' : (flatSortAsc ? '↑' : '↓');
 }
 
-// ==========================================
-// 5. 彈出走勢圖 (Chart.js) - 確保使用原始額度篩選
-// ==========================================
+function renderScatterChart(data, selTerms) {
+    const canvas = document.getElementById('scatterChart');
+    const ctx = canvas.getContext('2d');
+    if (scatterChartInst) { scatterChartInst.destroy(); scatterChartInst = null; }
+
+    if (selTerms.length === 0 || data.length === 0) return;
+
+    const grouped = {};
+    let overallMaxRate = 0;
+    data.forEach(d => {
+        const key = `${d.Bank}|${d.Term}`;
+        if (!grouped[key] || d.Rate > grouped[key].Rate) grouped[key] = d;
+        if (d.Rate > overallMaxRate) overallMaxRate = d.Rate;
+    });
+
+    const categoryDatasets = {};
+    BANK_CATEGORIES.forEach(cat => {
+        categoryDatasets[cat] = {
+            label: cat, data: [], showLine: false,
+            pointRadius: 6, pointHoverRadius: 8,
+            backgroundColor: CATEGORY_COLORS[cat], borderColor: '#fff', borderWidth: 1
+        };
+    });
+
+    const banks = [...new Set(Object.values(grouped).map(d => d.Bank))];
+    const bestByTerm = {};
+    const medianPoints = [];
+
+    selTerms.forEach(term => {
+        let bestBank = null, bestRate = -1;
+        const rates = [];
+        banks.forEach(b => {
+            const rec = grouped[`${b}|${term}`];
+            if (rec) {
+                rates.push(rec.Rate);
+                if (rec.Rate > bestRate) { bestRate = rec.Rate; bestBank = b; }
+                const cat = getBankCategory(b);
+                categoryDatasets[cat].data.push({ x: term, y: rec.Rate, bankName: b });
+            }
+        });
+        bestByTerm[term] = { bank: bestBank, rate: bestRate };
+        
+        if (rates.length > 0) {
+            const sorted = [...rates].sort((a, b) => a - b);
+            const mid = Math.floor(sorted.length / 2);
+            medianPoints.push({ x: term, y: sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2 });
+        }
+    });
+
+    const medianDataset = {
+        label: '全體銀行中位數', data: medianPoints, type: 'line',
+        borderColor: '#ef4444', backgroundColor: '#ef4444', borderWidth: 2,
+        pointRadius: 3, pointBackgroundColor: '#ef4444', fill: false, tension: 0.2, order: 0
+    };
+
+    const bestLabelPlugin = {
+        id: 'bestLabelPlugin',
+        afterDatasetsDraw(chart) {
+            const { ctx: c, scales } = chart;
+            c.save(); c.font = 'bold 11px -apple-system, sans-serif'; c.fillStyle = '#0f172a'; c.textAlign = 'center';
+            selTerms.forEach(term => {
+                const best = bestByTerm[term];
+                if (!best || !best.bank) return;
+                const x = scales.x.getPixelForValue(term);
+                const y = scales.y.getPixelForValue(best.rate);
+                c.fillText(`${best.bank} ${best.rate.toFixed(3)}%`, x, y - 12);
+            });
+            c.restore();
+        }
+    };
+
+    const datasets = Object.values(categoryDatasets).filter(d => d.data.length > 0);
+    datasets.push(medianDataset);
+
+    scatterChartInst = new Chart(ctx, {
+        type: 'line',
+        data: { labels: selTerms, datasets: datasets },
+        options: {
+            responsive: true,
+            interaction: { mode: 'nearest', intersect: true },
+            plugins: {
+                legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 12 } } },
+                tooltip: { 
+                    callbacks: { 
+                        label: (c) => c.dataset.type === 'line' ? `${c.dataset.label}: ${c.parsed.y.toFixed(3)}%` : `${c.raw.bankName}: ${c.parsed.y.toFixed(3)}%`
+                    } 
+                }
+            },
+            scales: {
+                x: { type: 'category', labels: selTerms, title: { display: true, text: '存期' } },
+                y: { title: { display: true, text: '利率 (%)' }, suggestedMax: overallMaxRate + 0.15 } // 增加緩衝區防止紅字切邊
+            }
+        },
+        plugins: [bestLabelPlugin]
+    });
+}
+
+let singleBankData = [];
+let singleBankSortCol = 'Date';
+let singleBankSortAsc = false;
+
+function openSingleBank(bank) {
+    document.body.style.overflow = 'hidden'; // 鎖死背景滾動
+    const selTerms = TARGET_TERMS.filter(t => getChecked('chk-term').includes(t));
+    
+    document.getElementById('singleBankTitle').innerText = `🏦 ${bank}`;
+
+    const bankRecords = rawData.filter(d => d.Bank === bank && selTerms.includes(d.Term));
+    const groupedByDate = {};
+    bankRecords.forEach(d => {
+        if (!groupedByDate[d.Date]) groupedByDate[d.Date] = { Date: d.Date };
+        if (!groupedByDate[d.Date][d.Term] || d.Rate > groupedByDate[d.Date][d.Term]) {
+            groupedByDate[d.Date][d.Term] = d.Rate;
+        }
+    });
+
+    singleBankData = Object.values(groupedByDate);
+    singleBankSortCol = 'Date';
+    singleBankSortAsc = false; // 預設日期新到舊
+    
+    renderSingleBankTable(selTerms);
+    document.getElementById('singleBankModal').style.display = 'flex';
+}
+
+function setSingleBankSort(col) {
+    if (singleBankSortCol === col) singleBankSortAsc = !singleBankSortAsc;
+    else { singleBankSortCol = col; singleBankSortAsc = (col === 'Date') ? false : true; }
+    const selTerms = TARGET_TERMS.filter(t => getChecked('chk-term').includes(t));
+    renderSingleBankTable(selTerms);
+}
+
+function renderSingleBankTable(selTerms) {
+    singleBankData.sort((a, b) => {
+        let valA = a[singleBankSortCol] !== undefined ? a[singleBankSortCol] : -1;
+        let valB = b[singleBankSortCol] !== undefined ? b[singleBankSortCol] : -1;
+        if (singleBankSortCol === 'Date') {
+            if (valA < valB) return singleBankSortAsc ? -1 : 1;
+            if (valA > valB) return singleBankSortAsc ? 1 : -1;
+            return 0;
+        } else {
+            return singleBankSortAsc ? valA - valB : valB - valA;
+        }
+    });
+
+    const thead = document.getElementById('singleBankHead');
+    const tbody = document.getElementById('singleBankBody');
+    
+    const getSortInd = (c) => singleBankSortCol !== c ? '<span style="color:#cbd5e1;">↕</span>' : (singleBankSortAsc ? '↑' : '↓');
+    
+    let thHtml = `<th onclick="setSingleBankSort('Date')" style="cursor: pointer; position: sticky; top: 0; background: #e2e8f0; z-index: 2;">日期 ${getSortInd('Date')}</th>`;
+    selTerms.forEach(term => {
+        thHtml += `<th onclick="setSingleBankSort('${term}')" style="cursor: pointer; position: sticky; top: 0; background: #e2e8f0; z-index: 2;">${term} ${getSortInd(term)}</th>`;
+    });
+    thead.innerHTML = `<tr>${thHtml}</tr>`;
+    
+    tbody.innerHTML = '';
+    if (singleBankData.length === 0) { tbody.innerHTML = `<tr><td colspan="${selTerms.length + 1}">無資料</td></tr>`; return; }
+
+    singleBankData.forEach(row => {
+        let tdHtml = `<td>${row.Date}</td>`;
+        selTerms.forEach(term => {
+            tdHtml += row[term] !== undefined ? `<td>${row[term].toFixed(3)}</td>` : `<td class="empty-cell">-</td>`;
+        });
+        const tr = document.createElement('tr'); tr.innerHTML = tdHtml; tbody.appendChild(tr);
+    });
+}
+
+function closeSingleBankModal() {
+    document.getElementById('singleBankModal').style.display = 'none';
+    document.body.style.overflow = ''; // 恢復背景滾動
+}
+
+function copySingleBankTable() {
+    const table = document.getElementById('singleBankTable');
+    let tsv = "";
+    for (let i = 0; i < table.rows.length; i++) {
+        let rowData = [];
+        for (let j = 0; j < table.rows[i].cells.length; j++) {
+            rowData.push(table.rows[i].cells[j].innerText.replace(/[↑↓↕]/g, '').trim());
+        }
+        tsv += rowData.join("\t") + "\n";
+    }
+    const el = document.createElement('textarea'); el.value = tsv; document.body.appendChild(el); el.select();
+    document.execCommand('copy'); document.body.removeChild(el);
+    showToast('✅ 單一銀行資料已複製到剪貼簿');
+}
+
 function openChart(bank, term, originalQuota) {
-    // 嚴格透過 OriginalQuota (真實金額) 去抓歷史軌跡，避免大額與一般混圖
-    const history = rawData.filter(d => d.Bank === bank && d.Term === term && d.OriginalQuota === originalQuota)
-                           .sort((a, b) => new Date(a.Date) - new Date(b.Date)); 
+    const quotaFilter = getChecked('chk-quota');
+    currentChart = { bank, term, quotaFilter, selectedQuota: '__max__' };
+
+    const relevant = rawData.filter(d => d.Bank === bank && d.Term === term && (quotaFilter.length === 0 || quotaFilter.includes(d.Quota)));
+    const quotaMaxMap = {};
+    relevant.forEach(d => {
+        if (!quotaMaxMap[d.OriginalQuota] || d.Rate > quotaMaxMap[d.OriginalQuota]) quotaMaxMap[d.OriginalQuota] = d.Rate;
+    });
+    const quotaOptions = Object.keys(quotaMaxMap).sort((a, b) => quotaMaxMap[b] - quotaMaxMap[a]);
+
+    const select = document.getElementById('quotaSelect');
+    let optionsHtml = `<option value="__max__">每日最高（預設）</option>`;
+    optionsHtml += quotaOptions.map(q => `<option value="${q}">${q}　(最高 ${quotaMaxMap[q].toFixed(3)}%)</option>`).join('');
+    select.innerHTML = optionsHtml; select.value = '__max__';
+
+    document.getElementById('chartModal').style.display = 'flex';
+    renderTrendChart();
+}
+
+function onQuotaSelectChange() {
+    currentChart.selectedQuota = document.getElementById('quotaSelect').value;
+    renderTrendChart();
+}
+
+function renderTrendChart() {
+    const { bank, term, quotaFilter, selectedQuota } = currentChart;
+    let history;
+
+    if (selectedQuota === '__max__') {
+        const byDate = {};
+        rawData.filter(d => d.Bank === bank && d.Term === term && (quotaFilter.length === 0 || quotaFilter.includes(d.Quota)))
+               .forEach(d => { if (!byDate[d.Date] || d.Rate > byDate[d.Date].Rate) byDate[d.Date] = d; });
+        history = Object.values(byDate).sort((a, b) => new Date(a.Date) - new Date(b.Date));
+    } else {
+        history = rawData.filter(d => d.Bank === bank && d.Term === term && d.OriginalQuota === selectedQuota)
+                         .sort((a, b) => new Date(a.Date) - new Date(b.Date));
+    }
 
     document.getElementById('modalTitle').innerText = `${bank} - ${term}定存走勢`;
-    document.getElementById('modalSubtitle').innerText = `對應額度：${originalQuota}`;
-    document.getElementById('chartModal').style.display = 'flex';
+    document.getElementById('modalSubtitle').innerText = selectedQuota === '__max__' ? `每日最高報價` : `額度：${selectedQuota}`;
 
     const ctx = document.getElementById('detailChart').getContext('2d');
     if (chartInst) chartInst.destroy();
+    if (history.length === 0) { chartInst = null; return; }
 
-    const rates = history.map(d => d.Rate);
-    const dates = history.map(d => d.Date);
+    const rates = history.map(d => d.Rate); const dates = history.map(d => d.Date); const quotas = history.map(d => d.OriginalQuota);
     const isUp = rates[rates.length-1] >= rates[0];
 
     chartInst = new Chart(ctx, {
@@ -650,39 +841,21 @@ function openChart(bank, term, originalQuota) {
         data: {
             labels: dates,
             datasets: [{
-                label: '固定利率 (%)',
-                data: rates,
-                borderColor: isUp ? '#ef4444' : '#2563eb', 
-                backgroundColor: isUp ? 'rgba(239, 68, 68, 0.1)' : 'rgba(37, 99, 235, 0.1)',
-                borderWidth: 2,
-                fill: true,
-                tension: 0.1,
-                pointBackgroundColor: '#fff',
-                pointBorderColor: isUp ? '#ef4444' : '#2563eb',
-                pointRadius: 4,
-                pointHoverRadius: 6
+                label: '固定利率 (%)', data: rates,
+                borderColor: isUp ? '#ef4444' : '#2563eb', backgroundColor: isUp ? 'rgba(239, 68, 68, 0.1)' : 'rgba(37, 99, 235, 0.1)',
+                borderWidth: 2, fill: true, tension: 0.1, pointBackgroundColor: '#fff', pointRadius: 4
             }]
         },
         options: {
             responsive: true,
-            plugins: { tooltip: { mode: 'index', intersect: false } },
-            scales: {
-                y: { 
-                    title: { display: true, text: '利率 (%)' },
-                    min: Math.min(...rates) - 0.05,
-                    max: Math.max(...rates) + 0.05
-                },
-                x: { title: { display: false } }
-            }
+            plugins: { tooltip: { callbacks: { afterLabel: (c) => selectedQuota === '__max__' ? `額度: ${quotas[c.dataIndex]}` : '' } } },
+            scales: { y: { min: Math.min(...rates) - 0.05, max: Math.max(...rates) + 0.05 }, x: { title: { display: false } } }
         }
     });
 }
 
-function closeModal() {
-    document.getElementById('chartModal').style.display = 'none';
-}
+function closeModal() { document.getElementById('chartModal').style.display = 'none'; }
 
-// 啟動 App
 window.onload = init;
 </script>
 </body>
