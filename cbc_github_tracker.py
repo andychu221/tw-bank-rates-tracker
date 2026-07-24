@@ -154,7 +154,7 @@ def process_scraped_data(df: pd.DataFrame) -> pd.DataFrame:
 def sync_with_github(new_df: pd.DataFrame):
     """
     核心功能：透過 GitHub REST API 讀取遠端 JSON 進行合併與去重複，再回推更新
-    完全不需要本地建置 git 倉庫或環境
+    使用 Git Blobs API 突破 1MB 讀取限制，確保可儲存全年歷史資料。
     """
     if new_df.empty:
         log.warning("⚠️ 新增資料為空，跳過 GitHub 同步流程。")
@@ -163,11 +163,12 @@ def sync_with_github(new_df: pd.DataFrame):
     current_year = datetime.now().strftime("%Y")
     today_str = datetime.now().strftime("%Y-%m-%d")
     
-    # 動態決定當年度的 JSON 儲存路徑
     file_path = f"data/rates_{current_year}.json"
+    dir_path = "data"  # 目錄路徑
     
     # GitHub REST API 節點
-    api_url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/contents/{file_path}"
+    contents_api_url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/contents/{file_path}"
+    dir_api_url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/contents/{dir_path}"
     
     headers = {
         "Authorization": f"token {GITHUB_TOKEN}",
@@ -179,71 +180,73 @@ def sync_with_github(new_df: pd.DataFrame):
     sha = None
     old_df = pd.DataFrame()
     
-    # Step 1: 嘗試獲取遠端已有的資料檔案
-    res = requests.get(api_url, headers=headers)
-    
-    if res.status_code == 200:
-        log.info("📁 發現遠端已有同年度歷史數據，正在下載進行增量合併...")
-        file_info = res.json()
-        sha = file_info["sha"]  # 更新必備的檔案指紋碼
-        
-        # 解碼 Base64 內容
-        content_b64 = file_info["content"]
-        try:
-            old_json_bytes = base64.b64decode(content_b64)
-            old_json_str = old_json_bytes.decode('utf-8')
-            old_df = pd.read_json(io.StringIO(old_json_str), orient='records', convert_dates=False)
-            # 確保 Date 欄位絕對是字串型態
-            if 'Date' in old_df.columns:
-                old_df['Date'] = old_df['Date'].astype(str)
-        except Exception as e:
-            log.error(f"❌ 解析遠端原有 JSON 發生錯誤，將覆蓋建立新檔。錯誤: {e}")
-            old_df = pd.DataFrame()
-            
-    elif res.status_code == 404:
-        log.info("🆕 遠端尚未有此年度的檔案，將動態建立新檔案。")
+    # Step 1: 透過目錄列表取得檔案的 SHA (繞過 GET contents 1MB 限制)
+    dir_res = requests.get(dir_api_url, headers=headers)
+    if dir_res.status_code == 200:
+        for item in dir_res.json():
+            if item["name"] == f"rates_{current_year}.json":
+                sha = item["sha"]
+                break
+    elif dir_res.status_code == 404:
+        log.info("🆕 data 目錄尚未建立。")
     else:
-        log.error(f"❌ 讀取 GitHub 失敗 (狀態碼: {res.status_code})，回應訊息: {res.text}")
-        log.error("請檢查您的 GITHUB_TOKEN 是否有效，或 GITHUB_OWNER/GITHUB_REPO 是否拼寫正確。")
+        log.error(f"❌ 讀取目錄失敗 (狀態碼: {dir_res.status_code})，回應訊息: {dir_res.text}")
         return
 
-    # Step 2: 合併新舊資料
+    # Step 2: 透過 Git Blobs API 讀取檔案內容 (支援最高 100MB)
+    if sha:
+        log.info("📁 發現遠端已有同年度歷史數據，正在透過 Blobs API 下載進行增量合併...")
+        blob_url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/git/blobs/{sha}"
+        blob_res = requests.get(blob_url, headers=headers)
+
+        if blob_res.status_code == 200:
+            content_b64 = blob_res.json()["content"]
+            try:
+                # Blob API 會自動分行 Base64 字串，b64decode 可正常處理
+                old_json_str = base64.b64decode(content_b64).decode('utf-8')
+                old_df = pd.read_json(io.StringIO(old_json_str), orient='records', convert_dates=False)
+                if 'Date' in old_df.columns:
+                    old_df['Date'] = old_df['Date'].astype(str)
+            except Exception as e:
+                log.error(f"❌ 解析遠端原有 JSON 發生錯誤，將覆蓋建立新檔。錯誤: {e}")
+                old_df = pd.DataFrame()
+        else:
+            log.error(f"❌ 無法讀取 Blob 內容 (狀態碼: {blob_res.status_code})")
+            return
+    else:
+        log.info("🆕 遠端尚未有此年度的檔案，將動態建立新檔案。")
+
+    # Step 3: 合併新舊資料
     if not old_df.empty:
-        # 強制將舊資料的 Rate 轉為字串確保格式一致
         old_df['Rate'] = old_df['Rate'].astype(str).str.strip()
         combined_df = pd.concat([old_df, new_df], ignore_index=True)
     else:
         combined_df = new_df
 
-    # Step 3: 去重複邏輯 (關鍵技術點)
-    # 基準組：日期、銀行、項目、存期、額度 皆相同時
-    # keep='last'：保留最後加入的那一筆（即今日最新抓取的資料，實現覆蓋與去重）
+    # Step 4: 去重複邏輯 (基準組：日期、銀行、項目、存期、額度 皆相同時)
     combined_df.drop_duplicates(
         subset=['Date', 'Bank', 'Item', 'Term', 'Quota'],
         keep='last',
         inplace=True
     )
     
-    # 依日期與銀行排序，確保 JSON 結構美觀易讀
     combined_df.sort_values(by=['Date', 'Bank', 'Term'], ascending=[False, True, True], inplace=True)
 
-    # Step 4: 轉換為縮排 JSON 字串（有利於 GitHub Commit Diff 呈現變動狀況）
+    # Step 5: 轉換與 Base64 編碼
     final_json_str = combined_df.to_json(orient='records', force_ascii=False, indent=2)
-    
-    # 對檔案內容進行 Base64 編碼以符合 GitHub API 規範
     encoded_content = base64.b64encode(final_json_str.encode('utf-8')).decode('utf-8')
     
-    # Step 5: 建立 Put 請求的 Payload
+    # Step 6: 建立 Put 請求的 Payload (上傳支援到 50MB)
     commit_message = f"chore(data): automated daily update {today_str} [skip ci]"
     put_data = {
         "message": commit_message,
         "content": encoded_content
     }
     if sha:
-        put_data["sha"] = sha  # 如果是更新檔案，必須附帶上原本的 SHA 值
+        put_data["sha"] = sha 
 
     log.info(f"📤 正在將整合後的數據上傳回 GitHub 倉庫 ({len(combined_df)} 筆)...")
-    put_res = requests.put(api_url, headers=headers, json=put_data)
+    put_res = requests.put(contents_api_url, headers=headers, json=put_data)
     
     if put_res.status_code in [200, 201]:
         log.info(f"🎉 成功！檔案已儲存更新至 GitHub: {file_path}")
