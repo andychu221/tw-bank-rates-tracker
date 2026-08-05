@@ -40,7 +40,7 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             align-items: flex-end;
         }
-        .control-group { position: relative; flex: 1; min-width: 140px; }
+        .control-group { position: relative; flex: 1; min-width: 120px; }
         label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-light); margin-bottom: 4px; }
         
         input.date-select {
@@ -90,7 +90,6 @@
         }
         th:last-child, td:last-child { border-right: none; }
         
-        /* 表頭固定 (Sticky) */
         thead th {
             position: sticky; top: 0; z-index: 2;
             background: #e2e8f0; font-weight: 600; cursor: pointer; color: #334155;
@@ -100,7 +99,6 @@
         }
         thead th:hover { background: #cbd5e1; }
         
-        /* 銀行名稱固定樣式 */
         .matrix-mode tbody td:nth-child(2) { font-weight: 600; background: var(--surface); text-align: left; }
         .table-mode tbody td:nth-child(1) { font-weight: 600; background: var(--surface); text-align: left; }
 
@@ -125,6 +123,19 @@
         .empty-cell { color: #94a3b8; }
         .note { font-size: 0.75rem; color: var(--text-light); margin-top: 8px; }
 
+        /* 新增 2x2 版面的 Grid 樣式 */
+        .trend-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .trend-item {
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px;
+        }
+
         .modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000;
@@ -132,11 +143,10 @@
         .modal-content {
             background: var(--surface); padding: 15px; border-radius: 8px; width: 90%; max-width: 600px; position: relative;
         }
-        /* 針對單一銀行 Modal 的表格容器，防止滾動穿透 */
         .modal-scroll-wrapper {
             max-height: 60vh; 
             overflow-y: auto; 
-            overscroll-behavior: contain; /* 避免背景滾動 */
+            overscroll-behavior: contain;
             border: 1px solid var(--border);
             border-radius: 4px;
         }
@@ -161,11 +171,12 @@
     <h1>🏦 銀行牌告利率追蹤</h1>
     
     <div class="controls">
-        <div class="control-group">
+        <!-- 縮小資料日期與銀行篩選的寬度 -->
+        <div class="control-group" style="max-width: 130px;">
             <label>資料日期</label>
             <input type="date" id="dateSelect" class="date-select" onchange="processAndRender()">
         </div>
-        <div class="control-group">
+        <div class="control-group" style="max-width: 150px;">
             <label>銀行篩選</label>
             <div class="dropdown" id="dd-bank" onclick="toggleDD('dd-bank', event)">
                 <div class="dropdown-header"><span id="lbl-bank">載入中...</span> ▾</div>
@@ -186,15 +197,16 @@
                 <div class="dropdown-content" id="chk-quota" onclick="event.stopPropagation()"></div>
             </div>
         </div>
-        <div class="control-group" style="max-width: 180px;">
+        <!-- 擴充顯示模式以容納四個按鈕 -->
+        <div class="control-group" style="max-width: 250px;">
             <label>顯示模式</label>
             <div class="action-buttons">
                 <button id="btnMatrix" class="active" onclick="switchView('matrix')">矩陣</button>
+                <button id="btnTrend" onclick="switchView('trend')">趨勢</button>
                 <button id="btnTable" onclick="switchView('table')">表格</button>
                 <button id="btnScatter" onclick="switchView('scatter')">圖形</button>
             </div>
         </div>
-        <!-- 移除操作標籤，直接放複製按鈕 -->
         <div class="control-group" style="flex: 0 0 auto;">
             <div class="action-buttons" style="margin-top: 21px;">
                 <button onclick="copyTable()">📋 複製</button>
@@ -213,6 +225,15 @@
     
     <div class="chart-wrapper hidden" id="scatterWrapper">
         <canvas id="scatterChart" height="110"></canvas>
+    </div>
+
+    <div class="chart-wrapper hidden" id="trendWrapper">
+        <div class="trend-grid">
+            <div class="trend-item"><canvas id="trendChart3"></canvas></div>
+            <div class="trend-item"><canvas id="trendChart6"></canvas></div>
+            <div class="trend-item"><canvas id="trendChart9"></canvas></div>
+            <div class="trend-item"><canvas id="trendChart1"></canvas></div>
+        </div>
     </div>
     <div class="note">* 額度非「一般」者皆統一歸類為「大額」，矩陣表格預設顯示最高利率。點擊矩陣中藍色底線之銀行名稱可查看單一銀行歷史紀錄。點擊數值可看走勢圖。</div>
 </div>
@@ -250,10 +271,10 @@
 
 <script>
 const DATA_URL = 'https://raw.githubusercontent.com/andychu221/tw-bank-rates-tracker/main/data/rates_2026.json';
-const TARGET_TERMS = ['1月', '3月', '6月', '9月', '1年']; 
+// 將 1月, 3月, 6月, 9月 更新為加入「個」字
+const TARGET_TERMS = ['1個月', '3個月', '6個月', '9個月', '1年']; 
 const BANK_CATEGORIES = ['公股銀行', '民營大型', '外國銀行', '民營小型'];
 
-// 色彩對應：公股(藍), 民營大型(橘), 外國銀行(綠), 民營小型(紫)
 const CATEGORY_COLORS = {
     '公股銀行': '#2563eb',
     '民營大型': '#f97316',
@@ -272,10 +293,10 @@ let flatSortAsc = true;
 
 let chartInst = null;
 let scatterChartInst = null;
+let trendChartInsts = {}; // 用於保存 2x2 趨勢圖表實例
 let currentChart = { bank: null, term: null, quotaFilter: [], selectedQuota: '__max__' };
 
 function getBankCategory(bankName) {
-    // 透過關鍵字配對，避免全名/簡稱差異
     if (['中國信託', '中信', '國泰', '富邦', '玉山', '台新', '永豐'].some(k => bankName.includes(k))) return '民營大型';
     if (['三井', '三菱', '中國台北', '中國建設', '交銀', '匯豐', '滙豐', '印尼', '大華', '安智', '德意志', '摩根', '日商', '星展', '東方匯理', '法國', '渣打', '澳盛', '美國', '西班牙', '韓商', '首都', '東亞'].some(k => bankName.includes(k))) return '外國銀行';
     if (['一銀', '第一', '兆豐', '中小企銀', '企銀', '合庫', '合作金庫', '土銀', '土地', '彰銀', '彰化', '臺銀', '臺灣', '華銀', '華南', '農金', '農業', '郵政'].some(k => bankName.includes(k))) return '公股銀行';
@@ -295,6 +316,11 @@ async function init() {
             d.Bank = d.Bank.replace(/^\d+/, '').replace(/\s+/g, '');
             d.OriginalQuota = d.Quota;
             if (d.Quota !== '一般') d.Quota = '大額';
+
+            // 將資料中的 1月, 3月... 等改寫為包含「個」字以配對目標
+            if (d.Term.match(/^\d+月$/)) {
+                d.Term = d.Term.replace('月', '個月');
+            }
 
             const key = `${d.Date}|${d.Bank}|${d.Term}|${d.OriginalQuota}`;
             if (!dedupMap[key] || d.Rate > dedupMap[key].Rate) {
@@ -332,7 +358,6 @@ function buildBankCheckboxes(containerId, banks) {
                     <input type="checkbox" onchange="toggleAll('${containerId}', this.checked)" checked> (全選/全不選)
                 </label>`;
     
-    // 依分類建立選項
     BANK_CATEGORIES.forEach(category => {
         const categoryBanks = banks.filter(b => getBankCategory(b) === category);
         if (categoryBanks.length > 0) {
@@ -399,16 +424,18 @@ function switchView(view) {
     document.getElementById('btnMatrix').classList.toggle('active', view === 'matrix');
     document.getElementById('btnTable').classList.toggle('active', view === 'table');
     document.getElementById('btnScatter').classList.toggle('active', view === 'scatter');
+    document.getElementById('btnTrend').classList.toggle('active', view === 'trend');
     
     const tableEl = document.getElementById('dataTable');
     if (view === 'matrix') {
         tableEl.classList.add('matrix-mode'); tableEl.classList.remove('table-mode');
-    } else {
+    } else if (view === 'table') {
         tableEl.classList.add('table-mode'); tableEl.classList.remove('matrix-mode');
     }
 
-    document.getElementById('tableWrapper').classList.toggle('hidden', view === 'scatter');
+    document.getElementById('tableWrapper').classList.toggle('hidden', view === 'scatter' || view === 'trend');
     document.getElementById('scatterWrapper').classList.toggle('hidden', view !== 'scatter');
+    document.getElementById('trendWrapper').classList.toggle('hidden', view !== 'trend');
     processAndRender();
 }
 
@@ -420,6 +447,11 @@ function showToast(msg) {
 }
 
 function copyTable() {
+    if (currentView === 'trend') {
+        copyTrendData();
+        return;
+    }
+
     const table = document.getElementById('dataTable');
     let tsv = "";
     for (let i = 0; i < table.rows.length; i++) {
@@ -437,20 +469,75 @@ function copyTable() {
     showToast(`✅ ${currentView === 'matrix' ? '矩陣' : '表格'}已連同表頭複製到剪貼簿`);
 }
 
+function copyTrendData() {
+    const selBanks = getChecked('chk-bank');
+    const selQuotas = getChecked('chk-quota');
+    const termsToDraw = ['3個月', '6個月', '9個月', '1年'];
+    
+    const baseData = rawData.filter(d => selBanks.includes(d.Bank) && selQuotas.includes(d.Quota));
+    
+    let tsv = "日期\t";
+    termsToDraw.forEach(term => {
+        tsv += `${term}最高利率\t${term}提供銀行\t`;
+    });
+    tsv += "\n";
+
+    const allDates = [...new Set(baseData.map(d => d.Date))].sort((a,b) => new Date(a) - new Date(b));
+    const trendDataMap = {};
+    
+    termsToDraw.forEach(term => {
+        trendDataMap[term] = {};
+        const termData = baseData.filter(d => d.Term === term);
+        termData.forEach(d => {
+            if (!trendDataMap[term][d.Date]) trendDataMap[term][d.Date] = { maxRate: -1, banks: [] };
+            if (d.Rate > trendDataMap[term][d.Date].maxRate) {
+                trendDataMap[term][d.Date].maxRate = d.Rate;
+                trendDataMap[term][d.Date].banks = [d.Bank];
+            } else if (d.Rate === trendDataMap[term][d.Date].maxRate && !trendDataMap[term][d.Date].banks.includes(d.Bank)) {
+                trendDataMap[term][d.Date].banks.push(d.Bank);
+            }
+        });
+    });
+
+    allDates.forEach(date => {
+        tsv += `${date}\t`;
+        termsToDraw.forEach(term => {
+            const cell = trendDataMap[term][date];
+            if (cell && cell.maxRate !== -1) {
+                tsv += `${cell.maxRate.toFixed(3)}%\t${cell.banks.join(',')}\t`;
+            } else {
+                tsv += `-\t-\t`;
+            }
+        });
+        tsv += "\n";
+    });
+
+    const el = document.createElement('textarea'); 
+    el.value = tsv; document.body.appendChild(el); el.select();
+    document.execCommand('copy'); document.body.removeChild(el);
+    showToast('✅ 趨勢數據已複製到剪貼簿');
+}
+
 function processAndRender() {
     const date = document.getElementById('dateSelect').value;
     const selBanks = getChecked('chk-bank');
     const selTerms = TARGET_TERMS.filter(t => getChecked('chk-term').includes(t)); 
     const selQuotas = getChecked('chk-quota');
 
-    const currentData = rawData.filter(d => 
-        d.Date === date && selBanks.includes(d.Bank) && selTerms.includes(d.Term) && selQuotas.includes(d.Quota)
+    // 不綁定單一日期的過濾（為趨勢圖保留完整日期）
+    let filteredData = rawData.filter(d => 
+        selBanks.includes(d.Bank) && selTerms.includes(d.Term) && selQuotas.includes(d.Quota)
     );
+
+    if (currentView === 'trend') return renderTrendGrid(filteredData);
+
+    // 針對非趨勢圖，將資料進一步過濾至所選的指定日期
+    const currentData = filteredData.filter(d => d.Date === date);
 
     if (currentView === 'table') return renderFlatTable(currentData);
     if (currentView === 'scatter') return renderScatterChart(currentData, selTerms);
 
-    // 矩陣模式
+    // 以下為矩陣模式處理邏輯
     const grouped = {};
     currentData.forEach(d => {
         if (!grouped[d.Bank]) grouped[d.Bank] = {};
@@ -523,7 +610,6 @@ function processAndRender() {
     matrixData.forEach((row, index) => {
         const tr = document.createElement('tr');
         let tdHtml = `<td style="color: var(--text-light); font-weight: bold;">${index + 1}</td>`;
-        // 將銀行名稱改為可點擊以開啟單一銀行 Modal
         tdHtml += `<td class="single-bank-link" onclick="openSingleBank('${row.Bank}')" title="點擊查看 ${row.Bank} 歷史紀錄">${row.Bank}</td>`;
         
         selTerms.forEach(term => {
@@ -598,6 +684,90 @@ function setFlatSort(col) {
 function flatSortIndicator(col) {
     if (currentView !== 'table') return '';
     return flatSortCol !== col ? '<span style="color:#cbd5e1;">↕</span>' : (flatSortAsc ? '↑' : '↓');
+}
+
+function renderTrendGrid(data) {
+    // 固定要求的四個存期，與 Canvas 對應
+    const termsToDraw = ['3個月', '6個月', '9個月', '1年'];
+    const canvasIds = ['trendChart3', 'trendChart6', 'trendChart9', 'trendChart1'];
+
+    termsToDraw.forEach((term, idx) => {
+        const canvasId = canvasIds[idx];
+        const ctx = document.getElementById(canvasId).getContext('2d');
+        if (trendChartInsts[canvasId]) {
+            trendChartInsts[canvasId].destroy();
+        }
+
+        const termData = data.filter(d => d.Term === term);
+        
+        // 分日期找出當日最高利率，並記錄有哪些銀行提供
+        const dateMap = {};
+        termData.forEach(d => {
+            if (!dateMap[d.Date]) {
+                dateMap[d.Date] = { maxRate: -1, banks: [] };
+            }
+            if (d.Rate > dateMap[d.Date].maxRate) {
+                dateMap[d.Date].maxRate = d.Rate;
+                dateMap[d.Date].banks = [d.Bank];
+            } else if (d.Rate === dateMap[d.Date].maxRate) {
+                if (!dateMap[d.Date].banks.includes(d.Bank)) {
+                    dateMap[d.Date].banks.push(d.Bank);
+                }
+            }
+        });
+
+        // 按日期排序
+        const sortedDates = Object.keys(dateMap).sort((a, b) => new Date(a) - new Date(b));
+        const chartData = sortedDates.map(date => dateMap[date].maxRate);
+        const banksData = sortedDates.map(date => dateMap[date].banks);
+        
+        // 判斷走勢上漲或下跌決定顏色
+        const isUp = chartData.length >= 2 && chartData[chartData.length - 1] >= chartData[0];
+        const lineColor = isUp ? '#ef4444' : '#2563eb';
+        const bgColor = isUp ? 'rgba(239, 68, 68, 0.1)' : 'rgba(37, 99, 235, 0.1)';
+
+        trendChartInsts[canvasId] = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: sortedDates,
+                datasets: [{
+                    label: `${term}最高利率`,
+                    data: chartData,
+                    borderColor: lineColor,
+                    backgroundColor: bgColor,
+                    borderWidth: 2, fill: true, tension: 0.1,
+                    pointBackgroundColor: '#fff', pointRadius: 4,
+                    banksData: banksData // 自訂屬性，供 tooltip 使用
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: { display: true, text: `${term} 最高利率趨勢`, font: { size: 14 } },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const dataset = context.dataset;
+                                const idx = context.dataIndex;
+                                const rate = context.parsed.y.toFixed(3) + '%';
+                                const banks = dataset.banksData[idx].join(', ');
+                                return `最高: ${rate} (${banks})`;
+                            }
+                        }
+                    },
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        title: { display: true, text: '利率 (%)' },
+                        suggestedMin: chartData.length ? Math.min(...chartData) - 0.05 : 0,
+                        suggestedMax: chartData.length ? Math.max(...chartData) + 0.05 : 0
+                    },
+                    x: { ticks: { maxTicksLimit: 10 } }
+                }
+            }
+        });
+    });
 }
 
 function renderScatterChart(data, selTerms) {
@@ -690,7 +860,7 @@ function renderScatterChart(data, selTerms) {
             },
             scales: {
                 x: { type: 'category', labels: selTerms, title: { display: true, text: '存期' } },
-                y: { title: { display: true, text: '利率 (%)' }, suggestedMax: overallMaxRate + 0.15 } // 增加緩衝區防止紅字切邊
+                y: { title: { display: true, text: '利率 (%)' }, suggestedMax: overallMaxRate + 0.15 }
             }
         },
         plugins: [bestLabelPlugin]
@@ -702,7 +872,7 @@ let singleBankSortCol = 'Date';
 let singleBankSortAsc = false;
 
 function openSingleBank(bank) {
-    document.body.style.overflow = 'hidden'; // 鎖死背景滾動
+    document.body.style.overflow = 'hidden'; 
     const selTerms = TARGET_TERMS.filter(t => getChecked('chk-term').includes(t));
     
     document.getElementById('singleBankTitle').innerText = `🏦 ${bank}`;
@@ -718,7 +888,7 @@ function openSingleBank(bank) {
 
     singleBankData = Object.values(groupedByDate);
     singleBankSortCol = 'Date';
-    singleBankSortAsc = false; // 預設日期新到舊
+    singleBankSortAsc = false;
     
     renderSingleBankTable(selTerms);
     document.getElementById('singleBankModal').style.display = 'flex';
@@ -769,7 +939,7 @@ function renderSingleBankTable(selTerms) {
 
 function closeSingleBankModal() {
     document.getElementById('singleBankModal').style.display = 'none';
-    document.body.style.overflow = ''; // 恢復背景滾動
+    document.body.style.overflow = ''; 
 }
 
 function copySingleBankTable() {
