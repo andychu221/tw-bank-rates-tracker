@@ -696,8 +696,8 @@ function flatSortIndicator(col) {
 
 function renderTrendGrid(data) {
     // 固定要求的四個存期，與 Canvas 對應
-    const termsToDraw = ['3個月', '6個月', '9個月', '1年'];
-    const canvasIds = ['trendChart3', 'trendChart6', 'trendChart9', 'trendChart1'];
+    const termsToDraw = ['1個月','3個月', '6個月', '9個月' ];
+    const canvasIds = ['trendChart1', 'trendChart3', 'trendChart6', 'trendChart9'];
 
     termsToDraw.forEach((term, idx) => {
         const canvasId = canvasIds[idx];
