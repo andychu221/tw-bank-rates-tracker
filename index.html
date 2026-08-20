@@ -272,7 +272,7 @@
 <script>
 const DATA_URL = 'https://raw.githubusercontent.com/andychu221/tw-bank-rates-tracker/main/data/rates_2026.json';
 // 將 1月, 3月, 6月, 9月 更新為加入「個」字
-const TARGET_TERMS = ['1個月', '3個月', '6個月', '9個月', '1年']; 
+const TARGET_TERMS = ['1個月', '3個月', '6個月', '9個月']; 
 const BANK_CATEGORIES = ['公股銀行', '民營大型', '外國銀行', '民營小型'];
 
 const CATEGORY_COLORS = {
@@ -351,7 +351,14 @@ async function init() {
         document.getElementById('tableBody').innerHTML = `<tr><td colspan="7" style="color:red; text-align:center;">讀取失敗: ${e.message}</td></tr>`;
     }
 }
-
+const DEFAULT_UNCHECKED_BANKS = ['中華郵政', '印尼人民', '大華銀', '西班牙對外', '韓商韓亞', '首都銀', '香港東亞'];
+const DEFAULT_SMALL_PRIVATE_KEPT = ['上海商銀', '新光銀', '花旗(台灣)', '遠東銀'];
+    
+function isDefaultChecked(bank, category) {
+    if (category === '民營小型') return DEFAULT_SMALL_PRIVATE_KEPT.includes(bank);
+    return !DEFAULT_UNCHECKED_BANKS.includes(bank);
+}
+    
 function buildBankCheckboxes(containerId, banks) {
     const container = document.getElementById(containerId);
     let html = `<label class="dropdown-item" style="border-bottom: 1px solid #e2e8f0; font-weight: bold;">
