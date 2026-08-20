@@ -479,7 +479,7 @@ function copyTable() {
 function copyTrendData() {
     const selBanks = getChecked('chk-bank');
     const selQuotas = getChecked('chk-quota');
-    const termsToDraw = ['3個月', '6個月', '9個月', '1年'];
+    const termsToDraw = ['1個月', '3個月', '6個月', '9個月'];
     
     const baseData = rawData.filter(d => selBanks.includes(d.Bank) && selQuotas.includes(d.Quota));
     
