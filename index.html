@@ -370,8 +370,9 @@ function buildBankCheckboxes(containerId, banks) {
         if (categoryBanks.length > 0) {
             html += `<div class="dropdown-group-title">${category}</div>`;
             categoryBanks.forEach(bank => {
+                const checkedAttr = isDefaultChecked(bank, category) ? 'checked' : '';
                 html += `<label class="dropdown-item">
-                            <input type="checkbox" value="${bank}" checked onchange="updateLabels(); processAndRender();"> ${bank}
+                            <input type="checkbox" value="${bank}" ${checkedAttr} onchange="updateLabels(); processAndRender();"> ${bank}
                          </label>`;
             });
         }
